@@ -1,0 +1,1514 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>萌宠便装秀 - 选择填充小游戏</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=ZCOOL+KuaiLe&family=Nunito:wght@600;800&display=swap" rel="stylesheet">
+    <style>
+        /* 自定义可爱字体与动画 */
+        body {
+            font-family: 'Nunito', "PingFang SC", "Microsoft YaHei", sans-serif;
+            background: linear-gradient(135deg, #FFF5F7 0%, #FFFBEB 50%, #F0FDF4 100%);
+            user-select: none;
+            -webkit-user-select: none;
+            overflow-x: hidden;
+        }
+
+        .title-font {
+            font-family: 'ZCOOL KuaiLe', "KaiTi", "STKaiti", cursive, sans-serif;
+        }
+
+        .worksheet-font {
+            font-family: "KaiTi", "STKaiti", "SimSun", serif;
+        }
+
+        /* 宠物卡片悬浮动效 */
+        .pet-card {
+            transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+        .pet-card:hover {
+            transform: translateY(-8px) scale(1.03);
+        }
+        .pet-card.selected {
+            border-color: #FF6B8B;
+            background-color: #FFF0F3;
+            box-shadow: 0 12px 24px -6px rgba(255, 107, 139, 0.35);
+            transform: translateY(-6px) scale(1.04);
+        }
+
+        /* 题目横线输入框：完全留白，无提示词 */
+        .quiz-blank {
+            border: none;
+            border-bottom: 3px solid #374151;
+            background: rgba(255, 255, 255, 0.7);
+            border-radius: 6px 6px 0 0;
+            width: 105px;
+            text-align: center;
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: #EC4899;
+            margin: 0 8px;
+            padding: 2px 6px;
+            outline: none;
+            transition: all 0.2s;
+        }
+        .quiz-blank:focus {
+            border-bottom-color: #EC4899;
+            background: #FDF2F8;
+            box-shadow: 0 4px 10px rgba(236, 72, 153, 0.15);
+        }
+
+        /* 词库卡片按钮 */
+        .word-chip {
+            transition: all 0.18s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+        .word-chip:hover {
+            transform: translateY(-3px) scale(1.06);
+        }
+        .word-chip:active {
+            transform: scale(0.95);
+        }
+
+        /* 晃动提示动画 */
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            20%, 60% { transform: translateX(-8px); }
+            40%, 80% { transform: translateX(8px); }
+        }
+        .animate-shake {
+            animation: shake 0.45s ease-in-out;
+        }
+
+        /* 弹跳动画 */
+        @keyframes popIn {
+            0% { transform: scale(0.7); opacity: 0; }
+            70% { transform: scale(1.08); opacity: 1; }
+            100% { transform: none; opacity: 1; }
+        }
+        .animate-pop {
+            animation: popIn 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+        }
+
+        /* 舞台聚光灯背景 */
+        .stage-spotlight {
+            background: radial-gradient(circle at 50% 42%, #FFFFFF 0%, #FFF7ED 55%, #FDE68A 100%);
+            box-shadow: inset 0 0 30px rgba(251, 191, 36, 0.25);
+        }
+
+        /* 画布与贴纸层 */
+        #stage-wrapper {
+            touch-action: none;
+        }
+
+        /* 自定义跟随笔头大小的可视化光标圆环 */
+        #brush-cursor {
+            position: absolute;
+            pointer-events: none;
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 25;
+            display: none;
+            box-sizing: border-box;
+        }
+        .animate-pop {
+            animation: popIn 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+        }
+
+        /* 舞台聚光灯背景 */
+        .stage-spotlight {
+            background: radial-gradient(circle at 50% 42%, #FFFFFF 0%, #FFF7ED 55%, #FDE68A 100%);
+            box-shadow: inset 0 0 30px rgba(251, 191, 36, 0.25);
+        }
+
+        /* 画布与贴纸层 */
+        #stage-wrapper {
+            touch-action: none;
+        }
+
+        .sticker-item {
+            position: absolute;
+            cursor: grab;
+            user-select: none;
+            touch-action: none;
+            transform-origin: center center;
+            transition: filter 0.15s;
+        }
+        .sticker-item:active {
+            cursor: grabbing;
+        }
+        .sticker-item.active-sticker {
+            outline: 2px dashed #FF6B8B;
+            outline-offset: 4px;
+            border-radius: 12px;
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        /* 隐藏滚动条但保留滑动 */
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .no-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col items-center justify-between text-gray-800">
+
+    <!-- 顶部状态导航栏 -->
+    <header class="w-full max-w-4xl px-4 pt-4 pb-2 flex items-center justify-between">
+        <div class="flex items-center gap-2">
+            <span class="text-3xl">🎀</span>
+            <h1 class="title-font text-2xl sm:text-3xl text-pink-500 tracking-wide drop-shadow-sm">萌宠便装秀</h1>
+        </div>
+
+        <div class="flex items-center gap-3">
+            <!-- 答题进度胶囊 -->
+            <div id="progress-badge" class="hidden bg-white/90 border-2 border-pink-200 px-3.5 py-1.5 rounded-full shadow-sm flex items-center gap-2 text-sm font-bold text-pink-600">
+                <span>📝 进度:</span>
+                <span id="progress-text">1 / 13</span>
+            </div>
+
+            <!-- 音乐开关按钮 -->
+            <button id="bgm-toggle-btn" onclick="toggleBGM()" class="bg-white/90 hover:bg-pink-50 border-2 border-amber-200 px-3 py-1.5 rounded-full shadow-sm flex items-center gap-1.5 text-sm font-bold text-amber-600 transition" title="切换背景音乐">
+                <span id="bgm-icon">🎵</span>
+                <span id="bgm-label" class="hidden sm:inline">音乐开</span>
+            </button>
+        </div>
+    </header>
+
+    <!-- 主内容容器 -->
+    <main class="w-full max-w-4xl flex-1 flex flex-col items-center justify-center px-4 py-3">
+
+        <!-- ==================== 阶段 1：选择宠物界面 ==================== -->
+        <section id="screen-select" class="w-full bg-white/95 backdrop-blur rounded-3xl shadow-xl border-4 border-pink-200 p-6 sm:p-8 text-center animate-pop">
+            <div class="inline-block bg-pink-100 text-pink-600 font-bold px-4 py-1 rounded-full text-sm mb-3">
+                ✨ 第一步：挑选你的专属模特 ✨
+            </div>
+            <h2 class="title-font text-2xl sm:text-4xl text-gray-800 mb-2">你想和哪只小可爱一起参加便装秀？</h2>
+            <p class="text-gray-500 text-sm sm:text-base mb-6">每答对 1 道选词填空题，就能获得 <span class="text-pink-500 font-extrabold">30秒</span> 为它涂鸦和装扮哦！</p>
+
+            <!-- 三只宠物选择卡片 -->
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6 mb-8">
+                <!-- 小鸭子 -->
+                <div class="pet-card cursor-pointer rounded-2xl border-4 border-amber-100 bg-amber-50/40 p-4 flex flex-col items-center" onclick="selectPet('duck', this)">
+                    <div class="w-36 h-36 sm:w-40 sm:h-40 rounded-2xl bg-white flex items-center justify-center p-2 mb-3 shadow-inner overflow-hidden">
+                        <img id="preview-duck" alt="小鸭子" class="max-w-full max-h-full object-contain">
+                    </div>
+                    <span class="title-font text-xl text-amber-600">🐥 呆萌小鸭子</span>
+                    <span class="text-xs text-gray-400 mt-1">活泼俏皮 · 阳光小黄鸭</span>
+                </div>
+
+                <!-- 小兔子 -->
+                <div class="pet-card cursor-pointer rounded-2xl border-4 border-pink-100 bg-pink-50/40 p-4 flex flex-col items-center" onclick="selectPet('rabbit', this)">
+                    <div class="w-36 h-36 sm:w-40 sm:h-40 rounded-2xl bg-white flex items-center justify-center p-2 mb-3 shadow-inner overflow-hidden">
+                        <img id="preview-rabbit" alt="小兔子" class="max-w-full max-h-full object-contain">
+                    </div>
+                    <span class="title-font text-xl text-pink-600">🐰 乖巧小兔子</span>
+                    <span class="text-xs text-gray-400 mt-1">软萌甜美 · 长耳小公主</span>
+                </div>
+
+                <!-- 小猫咪 -->
+                <div class="pet-card cursor-pointer rounded-2xl border-4 border-sky-100 bg-sky-50/40 p-4 flex flex-col items-center" onclick="selectPet('cat', this)">
+                    <div class="w-36 h-36 sm:w-40 sm:h-40 rounded-2xl bg-white flex items-center justify-center p-2 mb-3 shadow-inner overflow-hidden">
+                        <img id="preview-cat" alt="小猫咪" class="max-w-full max-h-full object-contain">
+                    </div>
+                    <span class="title-font text-xl text-sky-600">🐱 灵动小猫咪</span>
+                    <span class="text-xs text-gray-400 mt-1">优雅可爱 · 时尚小达人</span>
+                </div>
+            </div>
+
+            <button id="start-game-btn" disabled onclick="startGame()" class="px-10 py-4 rounded-2xl title-font text-2xl text-white bg-gray-300 cursor-not-allowed shadow-lg transition-all">
+                请先点击选择一只小宠物
+            </button>
+        </section>
+
+        <!-- ==================== 阶段 2：选词填空答题界面 ==================== -->
+        <section id="screen-quiz" class="hidden w-full bg-white/95 backdrop-blur rounded-3xl shadow-xl border-4 border-amber-200 p-6 sm:p-8 animate-pop">
+            <div class="flex flex-col sm:flex-row items-center justify-between gap-4 border-b-2 border-dashed border-amber-200 pb-4 mb-6">
+                <div>
+                    <span id="section-badge" class="inline-block bg-amber-100 text-amber-700 font-bold px-3 py-1 rounded-full text-xs mb-1">
+                        第一组练习
+                    </span>
+                    <h2 class="worksheet-font text-xl sm:text-2xl font-bold text-gray-800">
+                        选择填充：找出适当的词语填在横线上。
+                    </h2>
+                </div>
+
+                <!-- 当前宠物小头像状态预览 -->
+                <div class="flex items-center gap-3 bg-pink-50 px-4 py-2 rounded-2xl border border-pink-200">
+                    <img id="quiz-pet-thumb" alt="当前宠物" class="w-12 h-12 object-contain">
+                    <div class="text-left">
+                        <div class="text-xs text-pink-500 font-bold">答对奖励</div>
+                        <div class="text-sm font-extrabold text-gray-700">⏱️ +30秒 便装时间</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 方框词库（高度还原原图方框样式，支持点击填入） -->
+            <div class="mb-7 text-center">
+                <div class="text-xs text-gray-400 mb-2">👇 点击下方方框里的词语，或直接在横线上输入 👇</div>
+                <div id="word-bank-box" class="inline-flex flex-wrap justify-center gap-3 sm:gap-4 border-2 border-gray-700 bg-amber-50/50 px-5 py-3 shadow-sm">
+                    <!-- 动态生成词库按钮 -->
+                </div>
+            </div>
+
+            <!-- 题目卡片区 -->
+            <div id="question-card" class="bg-gradient-to-b from-white to-amber-50/40 rounded-2xl border-2 border-amber-100 p-6 sm:p-8 mb-6 text-center shadow-inner">
+                <div class="worksheet-font text-2xl sm:text-3xl leading-relaxed text-gray-800 flex flex-wrap items-center justify-center">
+                    <span id="q-prefix">1. 天上有太阳，有月亮，</span>
+                    <!-- 输入处完全留白，严禁任何 placeholder 提示词 -->
+                    <input type="text" id="q-input" class="quiz-blank worksheet-font" autocomplete="off" spellcheck="false">
+                    <span id="q-suffix">有星星。</span>
+                </div>
+
+                <!-- 反馈提示信息 -->
+                <div id="quiz-feedback" class="h-8 mt-4 flex items-center justify-center font-bold text-lg"></div>
+            </div>
+
+            <!-- 操作按钮 -->
+            <div class="flex flex-wrap items-center justify-center gap-4">
+                <button onclick="clearBlank()" class="px-5 py-3 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-600 font-bold transition">
+                    清空横线
+                </button>
+                <button onclick="submitAnswer()" class="px-8 py-3 rounded-xl bg-gradient-to-r from-pink-500 to-amber-500 hover:from-pink-600 hover:to-amber-600 text-white font-extrabold text-lg shadow-md hover:shadow-lg transform active:scale-95 transition">
+                    ✨ 提交答案 ✨
+                </button>
+            </div>
+        </section>
+
+        <!-- ==================== 阶段 3：30秒便装时刻（涂鸦+装饰） ==================== -->
+        <section id="screen-dressup" class="hidden w-full bg-white/95 backdrop-blur rounded-3xl shadow-xl border-4 border-pink-300 p-4 sm:p-6 animate-pop">
+            <!-- 顶部倒计时与提示栏 -->
+            <div class="flex flex-wrap items-center justify-between gap-2 mb-4 bg-gradient-to-r from-pink-50 via-amber-50 to-sky-50 p-3 rounded-2xl border border-pink-200">
+                <div class="flex items-center gap-2">
+                    <span class="text-2xl animate-bounce">🎉</span>
+                    <div>
+                        <div class="title-font text-lg sm:text-xl text-pink-600">便装时刻开始啦！</div>
+                        <div class="text-xs text-gray-500">自由涂鸦或挑选小饰品打扮你的宠物吧~</div>
+                    </div>
+                </div>
+
+                <!-- 醒目的30秒倒计时器 -->
+                <div id="timer-box" class="flex items-center gap-2 bg-white px-4 py-2 rounded-2xl border-2 border-pink-400 shadow-sm">
+                    <span class="text-xl">⏳</span>
+                    <span class="text-sm font-bold text-gray-600">剩余时间:</span>
+                    <span id="timer-display" class="title-font text-2xl sm:text-3xl text-pink-600">30s</span>
+                </div>
+
+                <button onclick="endDressupEarly()" class="px-3.5 py-2 rounded-xl bg-amber-400 hover:bg-amber-500 text-white font-bold text-xs sm:text-sm shadow transition">
+                    提前完成，继续答题 ➡️
+                </button>
+            </div>
+
+            <!-- 主工作区：左侧画笔工具 + 中间宠物舞台 + 右侧小装饰品 -->
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-4 items-start">
+
+                <!-- 左侧：彩色涂鸦工具与画笔 (3列) -->
+                <div class="lg:col-span-3 bg-sky-50/70 rounded-2xl border-2 border-sky-200 p-3.5 flex flex-col gap-3">
+                    <div class="title-font text-base text-sky-700 flex items-center gap-1.5">
+                        <span>🎨</span> <span>彩色涂鸦画笔</span>
+                    </div>
+
+                    <!-- 颜色调色盘 -->
+                    <div>
+                        <div class="text-xs text-gray-500 mb-1.5 font-bold">选择画笔颜色：</div>
+                        <div id="color-palette" class="grid grid-cols-5 gap-2">
+                            <!-- 动态生成颜色按钮 -->
+                        </div>
+                    </div>
+
+                    <!-- 画笔粗细 -->
+                    <div>
+                        <div class="text-xs text-gray-500 mb-1.5 font-bold">画笔粗细：</div>
+                        <div class="grid grid-cols-3 gap-1.5">
+                            <button onclick="setBrushSize(4, this)" class="brush-size-btn py-1.5 rounded-lg bg-white border-2 border-sky-200 text-xs font-bold flex items-center justify-center gap-1">
+                                <span class="w-1.5 h-1.5 rounded-full bg-gray-800"></span> 细
+                            </button>
+                            <button onclick="setBrushSize(9, this)" class="brush-size-btn py-1.5 rounded-lg bg-sky-500 text-white border-2 border-sky-500 text-xs font-bold flex items-center justify-center gap-1">
+                                <span class="w-2.5 h-2.5 rounded-full bg-current"></span> 中
+                            </button>
+                            <button onclick="setBrushSize(18, this)" class="brush-size-btn py-1.5 rounded-lg bg-white border-2 border-sky-200 text-xs font-bold flex items-center justify-center gap-1">
+                                <span class="w-4 h-4 rounded-full bg-gray-800"></span> 粗
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- 橡皮擦与清空涂鸦 -->
+                    <div class="grid grid-cols-2 gap-2 pt-1 border-t border-sky-200">
+                        <button id="eraser-btn" onclick="toggleEraser()" class="py-2 px-2 rounded-xl bg-white hover:bg-amber-50 border-2 border-sky-200 text-xs font-bold text-gray-700 flex items-center justify-center gap-1 transition">
+                            <span>🧼</span> 橡皮擦
+                        </button>
+                        <button onclick="clearDrawingLayer()" class="py-2 px-2 rounded-xl bg-white hover:bg-red-50 border-2 border-red-200 text-xs font-bold text-red-500 flex items-center justify-center gap-1 transition">
+                            <span>🗑️</span> 清空涂鸦
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 中间：便装秀舞台区 (6列) -->
+                <div class="lg:col-span-6 flex flex-col items-center">
+                    <div id="stage-wrapper" class="relative w-full max-w-[380px] aspect-square rounded-3xl border-4 border-amber-300 stage-spotlight overflow-hidden shadow-inner">
+                        <!-- 1. 底层：去背后的萌宠图片 -->
+                        <img id="stage-pet-img" alt="舞台宠物" class="absolute inset-0 w-full h-full object-contain p-6 pointer-events-none select-none z-10">
+
+                        <!-- 2. 中层：自由涂鸦画布 -->
+                        <canvas id="doodle-canvas" class="absolute inset-0 w-full h-full z-20 cursor-none"></canvas>
+
+                        <!-- 2.5 画笔笔头实时预览圆环 -->
+                        <div id="brush-cursor"></div>
+
+                        <!-- 3. 顶层：可拖拽/缩放/旋转的可爱小装饰品层 -->
+                        <div id="stickers-layer" class="absolute inset-0 z-30 pointer-events-none"></div>
+
+                        <!-- 舞台装饰小角标 -->
+                        <div class="absolute bottom-2 left-3 z-10 text-xs font-bold text-amber-600/70 pointer-events-none">
+                            ✨ 萌宠便装秀舞台
+                        </div>
+                    </div>
+
+                    <!-- 选中装饰品后的微调控制条 -->
+                    <div id="sticker-controls" class="mt-2.5 flex items-center gap-2 bg-pink-50 border border-pink-200 px-3 py-1.5 rounded-full text-xs">
+                        <span class="text-pink-600 font-bold">饰品调整:</span>
+                        <button onclick="adjustActiveSticker('scale', 0.15)" class="px-2 py-0.5 bg-white rounded-full border border-pink-200 hover:bg-pink-100 font-bold" title="放大">➕放大</button>
+                        <button onclick="adjustActiveSticker('scale', -0.15)" class="px-2 py-0.5 bg-white rounded-full border border-pink-200 hover:bg-pink-100 font-bold" title="缩小">➖缩小</button>
+                        <button onclick="adjustActiveSticker('rotate', 15)" class="px-2 py-0.5 bg-white rounded-full border border-pink-200 hover:bg-pink-100 font-bold" title="旋转">🔄旋转</button>
+                        <button onclick="deleteActiveSticker()" class="px-2 py-0.5 bg-red-50 text-red-500 rounded-full border border-red-200 hover:bg-red-100 font-bold" title="移除">✖移除</button>
+                    </div>
+                </div>
+
+                <!-- 右侧：可爱小装饰品库 (3列) -->
+                <div class="lg:col-span-3 bg-pink-50/70 rounded-2xl border-2 border-pink-200 p-3.5 flex flex-col gap-2.5">
+                    <div class="title-font text-base text-pink-600 flex items-center gap-1.5">
+                        <span>🎀</span> <span>可爱小装饰品</span>
+                    </div>
+                    <div class="text-xs text-gray-500">点击添加到舞台，拖动可摆位置：</div>
+
+                    <div id="sticker-tray" class="grid grid-cols-4 lg:grid-cols-3 gap-2 max-h-[260px] overflow-y-auto pr-1">
+                        <!-- 动态生成小装饰品按钮 -->
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ==================== 阶段 4：全部通关·萌宠便装秀大展示 ==================== -->
+        <section id="screen-finale" class="hidden w-full bg-white/95 backdrop-blur rounded-3xl shadow-2xl border-4 border-amber-300 p-6 sm:p-8 text-center animate-pop">
+            <div class="inline-block bg-amber-100 text-amber-700 font-extrabold px-4 py-1 rounded-full text-sm mb-2">
+                🏆 恭喜完成全部 13 道选择填充题！ 🏆
+            </div>
+            <h2 class="title-font text-3xl sm:text-4xl text-pink-500 mb-2">✨ 萌宠便装秀·闪亮登场 ✨</h2>
+            <p class="text-gray-600 text-sm sm:text-base mb-5">快来看看你亲手装扮的超级大明星吧！</p>
+
+            <!-- 最终作品展示画框 -->
+            <div class="relative mx-auto w-full max-w-[360px] aspect-square rounded-3xl border-8 border-amber-200 stage-spotlight shadow-xl overflow-hidden mb-6 flex items-center justify-center">
+                <img id="final-showcase-img" alt="最终便装秀作品" class="w-full h-full object-contain">
+            </div>
+
+            <div class="flex flex-wrap items-center justify-center gap-4">
+                <button onclick="downloadArtwork()" class="px-7 py-3.5 rounded-2xl bg-gradient-to-r from-pink-500 to-rose-500 hover:from-pink-600 hover:to-rose-600 text-white font-extrabold text-base shadow-lg transition flex items-center gap-2">
+                    <span>📸</span> 保存便装纪念照
+                </button>
+                <button onclick="location.reload()" class="px-7 py-3.5 rounded-2xl bg-amber-100 hover:bg-amber-200 text-amber-800 font-extrabold text-base transition flex items-center gap-2">
+                    <span>🔄</span> 再玩一次
+                </button>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- 时间到提示弹窗（每次30秒结束时出现） -->
+    <div id="timeup-modal" class="hidden fixed inset-0 z-50 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4">
+        <div class="bg-white rounded-3xl border-4 border-amber-300 p-6 sm:p-8 max-w-sm w-full text-center shadow-2xl animate-pop">
+            <div class="text-5xl mb-3">⏰</div>
+            <h3 class="title-font text-2xl text-pink-600 mb-2">30秒便装时间到啦！</h3>
+            <p id="timeup-desc" class="text-gray-600 text-sm mb-6">
+                你的作品已经保存好啦！继续答对下一题，就能再次获得 30 秒继续装扮哦！
+            </p>
+            <button onclick="proceedAfterDressup()" class="w-full py-3.5 rounded-2xl bg-gradient-to-r from-amber-400 to-pink-500 text-white font-extrabold text-lg shadow-md hover:opacity-95 transition">
+                好的，继续挑战！ 🚀
+            </button>
+        </div>
+    </div>
+
+    <!-- 自定义提示消息条（替代 alert） -->
+    <div id="toast-msg" class="hidden fixed bottom-6 left-1/2 -translate-x-1/2 z-50 bg-gray-800/90 text-white px-5 py-2.5 rounded-full text-sm font-bold shadow-lg"></div>
+
+    <script>
+        /* ==========================================================================
+           1. 游戏核心数据：宠物素材与原图全部13道选择填充题
+           ========================================================================== */
+        const PET_ASSETS = {
+            duck: {
+                name: '小鸭子',
+                url: 'https://iili.io/o2qZpF2.md.png',
+                processedDataUrl: null
+            },
+            rabbit: {
+                name: '小兔子',
+                url: 'https://iili.io/o2qDCWG.md.png',
+                processedDataUrl: null
+            },
+            cat: {
+                name: '小猫咪',
+                url: 'https://iili.io/o2qyxj9.md.png',
+                processedDataUrl: null
+            }
+        };
+
+        // 严格还原原图的三组方框词库与13道题目
+        const QUIZ_QUESTIONS = [
+            // 第一组：词库 [ 也 都 还 没 ]
+            {
+                section: '第一组练习',
+                roundedBank: false,
+                wordBank: ['也', '都', '还', '没'],
+                prefix: '1. 天上有太阳，有月亮，',
+                suffix: '有星星。',
+                answers: ['还']
+            },
+            {
+                section: '第一组练习',
+                roundedBank: false,
+                wordBank: ['也', '都', '还', '没'],
+                prefix: '2. 小红有弟弟，',
+                suffix: '有哥哥。',
+                answers: ['没']
+            },
+            {
+                section: '第一组练习',
+                roundedBank: false,
+                wordBank: ['也', '都', '还', '没'],
+                prefix: '3. 小明用筷子吃面条，小力',
+                suffix: '用筷子吃面条。',
+                answers: ['也']
+            },
+            {
+                section: '第一组练习',
+                roundedBank: false,
+                wordBank: ['也', '都', '还', '没'],
+                prefix: '4. 爷爷和奶奶',
+                suffix: '会打太极拳。',
+                answers: ['都']
+            },
+
+            // 第二组：词库 [ 可爱 有趣 漂亮 安静 健康 ]
+            {
+                section: '第二组练习',
+                roundedBank: false,
+                wordBank: ['可爱', '有趣', '漂亮', '安静', '健康'],
+                prefix: '1. 小老虎和小狮子都很',
+                suffix: '。',
+                answers: ['可爱']
+            },
+            {
+                section: '第二组练习',
+                roundedBank: false,
+                wordBank: ['可爱', '有趣', '漂亮', '安静', '健康'],
+                prefix: '2. 这本画报很',
+                suffix: '。',
+                answers: ['漂亮']
+            },
+            {
+                section: '第二组练习',
+                roundedBank: false,
+                wordBank: ['可爱', '有趣', '漂亮', '安静', '健康'],
+                prefix: '3. 礼堂里非常',
+                suffix: '',
+                answers: ['安静']
+            },
+            {
+                section: '第二组练习',
+                roundedBank: false,
+                wordBank: ['可爱', '有趣', '漂亮', '安静', '健康'],
+                prefix: '4. 那张图画非常',
+                suffix: '。',
+                answers: ['有趣']
+            },
+            {
+                section: '第二组练习',
+                roundedBank: false,
+                wordBank: ['可爱', '有趣', '漂亮', '安静', '健康'],
+                prefix: '5. 外公的身体很健康，外婆的身体也很',
+                suffix: '。',
+                answers: ['健康']
+            },
+
+            // 第三组：圆角词库 ( 请 让 帮 用 跟 祝 就 给 )
+            {
+                section: '第三组练习',
+                roundedBank: true,
+                wordBank: ['请', '让', '帮', '用', '跟', '祝', '就', '给'],
+                prefix: '1. 阿姨',
+                suffix: '姐姐看电影。',
+                answers: ['请', '跟', '帮']
+            },
+            {
+                section: '第三组练习',
+                roundedBank: true,
+                wordBank: ['请', '让', '帮', '用', '跟', '祝', '就', '给'],
+                prefix: '2. 妹妹',
+                suffix: '妈妈去学校附近买橡皮和铅笔。',
+                answers: ['跟', '帮', '请']
+            },
+            {
+                section: '第三组练习',
+                roundedBank: true,
+                wordBank: ['请', '让', '帮', '用', '跟', '祝', '就', '给'],
+                prefix: '3. 奶奶',
+                suffix: '勺子吃炒饭。',
+                answers: ['用']
+            },
+            {
+                section: '第三组练习',
+                roundedBank: true,
+                wordBank: ['请', '让', '帮', '用', '跟', '祝', '就', '给'],
+                prefix: '4. 校长',
+                suffix: '小华回答问题。',
+                answers: ['让', '请']
+            }
+        ];
+
+        // 涂鸦调色盘颜色
+        const BRUSH_COLORS = [
+            '#FF5C8A', // 草莓粉
+            '#FF9F1C', // 活力橙
+            '#FFD166', // 柠檬黄
+            '#06D6A0', // 薄荷绿
+            '#38BDF8', // 天空蓝
+            '#A78BFA', // 香芋紫
+            '#F43F5E', // 珊瑚红
+            '#8B5CF6', // 葡萄紫
+            '#4B5563', // 炭黑色
+            '#FFFFFF'  // 纯白色
+        ];
+
+        // 可爱小装饰品清单
+        const STICKER_ITEMS = [
+            { emoji: '👑', label: '小皇冠' },
+            { emoji: '🎀', label: '蝴蝶结' },
+            { emoji: '🎩', label: '绅士帽' },
+            { emoji: '🧢', label: '鸭舌帽' },
+            { emoji: '🌸', label: '小花朵' },
+            { emoji: '🕶️', label: '酷墨镜' },
+            { emoji: '👓', label: '圆眼镜' },
+            { emoji: '💖', label: '大爱心' },
+            { emoji: '✨', label: '闪星星' },
+            { emoji: '🧣', label: '红围巾' },
+            { emoji: '🍭', label: '棒棒糖' },
+            { emoji: '🎈', label: '红气球' },
+            { emoji: '🍓', label: '小草莓' },
+            { emoji: '🌈', label: '小彩虹' },
+            { emoji: '🦋', label: '小蝴蝶' }
+        ];
+
+        /* ==========================================================================
+           2. 游戏状态变量
+           ========================================================================== */
+        let selectedPetKey = null;
+        let currentQuestionIndex = 0;
+        let dressupTimer = null;
+        let remainingSeconds = 30;
+        let isDressupActive = false;
+
+        // 绘图状态
+        let canvas, ctx;
+        let isDrawing = false;
+        let currentColor = BRUSH_COLORS[0];
+        let currentBrushSize = 9;
+        let isEraser = false;
+
+        // 贴纸管理状态
+        let activeStickerEl = null;
+
+        /* ==========================================================================
+           3. 自动抠图去除白色/浅色背景算法 (Canvas Flood-Fill + 边缘柔化)
+           ========================================================================== */
+        function removeImageBackground(imageUrl, callback) {
+            const img = new Image();
+            img.crossOrigin = 'Anonymous';
+
+            img.onload = function () {
+                try {
+                    const tempCanvas = document.createElement('canvas');
+                    const tCtx = tempCanvas.getContext('2d');
+                    tempCanvas.width = img.naturalWidth || img.width;
+                    tempCanvas.height = img.naturalHeight || img.height;
+                    tCtx.drawImage(img, 0, 0);
+
+                    const imgData = tCtx.getImageData(0, 0, tempCanvas.width, tempCanvas.height);
+                    const data = imgData.data;
+                    const w = tempCanvas.width;
+                    const h = tempCanvas.height;
+
+                    // 采样四个角落的平均背景色
+                    const corners = [
+                        0,
+                        (w - 1) * 4,
+                        ((h - 1) * w) * 4,
+                        ((h - 1) * w + (w - 1)) * 4
+                    ];
+                    let bgR = 0, bgG = 0, bgB = 0;
+                    corners.forEach(idx => {
+                        bgR += data[idx];
+                        bgG += data[idx + 1];
+                        bgB += data[idx + 2];
+                    });
+                    bgR /= 4; bgG /= 4; bgB /= 4;
+
+                    // 泛洪填充(BFS)从四周边缘向内消除背景，防止误删宠物身上的白色区域
+                    const visited = new Uint8Array(w * h);
+                    const queue = new Int32Array(w * h);
+                    let head = 0, tail = 0;
+
+                    function isBackgroundColor(idx) {
+                        const r = data[idx];
+                        const g = data[idx + 1];
+                        const b = data[idx + 2];
+                        const diff = Math.abs(r - bgR) + Math.abs(g - bgG) + Math.abs(b - bgB);
+                        // 兼容纯白或极浅灰底色
+                        return diff < 75 || (r > 235 && g > 235 && b > 235);
+                    }
+
+                    // 将四条边加入队列
+                    for (let x = 0; x < w; x++) {
+                        const topPos = x;
+                        const botPos = (h - 1) * w + x;
+                        if (!visited[topPos] && isBackgroundColor(topPos * 4)) {
+                            visited[topPos] = 1;
+                            queue[tail++] = topPos;
+                        }
+                        if (!visited[botPos] && isBackgroundColor(botPos * 4)) {
+                            visited[botPos] = 1;
+                            queue[tail++] = botPos;
+                        }
+                    }
+                    for (let y = 0; y < h; y++) {
+                        const leftPos = y * w;
+                        const rightPos = y * w + (w - 1);
+                        if (!visited[leftPos] && isBackgroundColor(leftPos * 4)) {
+                            visited[leftPos] = 1;
+                            queue[tail++] = leftPos;
+                        }
+                        if (!visited[rightPos] && isBackgroundColor(rightPos * 4)) {
+                            visited[rightPos] = 1;
+                            queue[tail++] = rightPos;
+                        }
+                    }
+
+                    while (head < tail) {
+                        const pos = queue[head++];
+                        const px = pos % w;
+                        const py = (pos / w) | 0;
+                        const idx = pos * 4;
+
+                        // 将背景像素设为透明
+                        data[idx + 3] = 0;
+
+                        // 检查上下左右邻居
+                        const neighbors = [];
+                        if (px > 0) neighbors.push(pos - 1);
+                        if (px < w - 1) neighbors.push(pos + 1);
+                        if (py > 0) neighbors.push(pos - w);
+                        if (py < h - 1) neighbors.push(pos + w);
+
+                        for (let i = 0; i < neighbors.length; i++) {
+                            const nPos = neighbors[i];
+                            if (!visited[nPos] && isBackgroundColor(nPos * 4)) {
+                                visited[nPos] = 1;
+                                queue[tail++] = nPos;
+                            }
+                        }
+                    }
+
+                    // 边缘轻微羽化，消除白边锯齿
+                    for (let y = 1; y < h - 1; y++) {
+                        for (let x = 1; x < w - 1; x++) {
+                            const pos = y * w + x;
+                            if (!visited[pos]) {
+                                const idx = pos * 4;
+                                if (data[idx] > 215 && data[idx + 1] > 215 && data[idx + 2] > 215) {
+                                    const hasTransparentNeighbor =
+                                        visited[pos - 1] || visited[pos + 1] ||
+                                        visited[pos - w] || visited[pos + w];
+                                    if (hasTransparentNeighbor) {
+                                        data[idx + 3] = 90;
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    tCtx.putImageData(imgData, 0, 0);
+                    callback(tempCanvas.toDataURL('image/png'));
+                } catch (err) {
+                    // 若跨域限制无法读取像素，则回退原始图片并配合 mix-blend-multiply
+                    console.warn('CORS fallback used for image:', imageUrl);
+                    callback(imageUrl, true);
+                }
+            };
+
+            img.onerror = function () {
+                callback(imageUrl, true);
+            };
+
+            img.src = imageUrl;
+        }
+
+        /* ==========================================================================
+           4. 可爱音乐盒背景音乐与音效引擎 (Web Audio API，零外部依赖)
+           ========================================================================== */
+        let audioCtx = null;
+        let isBgmEnabled = true;
+        let isBgmPlaying = false;
+        let bgmInterval = null;
+        let noteStep = 0;
+
+        // 轻快治愈的八音盒旋律（音符频率 Hz）
+        const MELODY_NOTES = [
+            523.25, 659.25, 783.99, 659.25, // C5 E5 G5 E5
+            587.33, 698.46, 880.00, 698.46, // D5 F5 A5 F5
+            523.25, 659.25, 783.99, 1046.50,// C5 E5 G5 C6
+            987.77, 783.99, 659.25, 587.33, // B5 G5 E5 D5
+            523.25, 659.25, 783.99, 659.25, // C5 E5 G5 E5
+            698.46, 880.00, 1046.50, 880.00,// F5 A5 C6 A5
+            783.99, 659.25, 587.33, 659.25, // G5 E5 D5 E5
+            523.25, 0,      523.25, 0       // C5 rest C5 rest
+        ];
+
+        function initAudioContext() {
+            if (!audioCtx) {
+                const AudioContext = window.AudioContext || window.webkitAudioContext;
+                audioCtx = new AudioContext();
+            }
+            if (audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+        }
+
+        function playMusicBoxNote(freq, duration = 0.35, volume = 0.08) {
+            if (!freq || !isBgmEnabled) return;
+            initAudioContext();
+
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+
+            gain.gain.setValueAtTime(0.001, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(volume, audioCtx.currentTime + 0.03);
+            gain.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + duration);
+
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+
+            osc.start();
+            osc.stop(audioCtx.currentTime + duration);
+        }
+
+        function startDressupBGM() {
+            isBgmPlaying = true;
+            if (!isBgmEnabled) return;
+            initAudioContext();
+            stopDressupBGM(false);
+            isBgmPlaying = true;
+
+            noteStep = 0;
+            playMusicBoxNote(MELODY_NOTES[noteStep++]);
+            bgmInterval = setInterval(() => {
+                if (!isBgmEnabled || !isBgmPlaying) return;
+                const freq = MELODY_NOTES[noteStep % MELODY_NOTES.length];
+                playMusicBoxNote(freq, 0.38, 0.075);
+                noteStep++;
+            }, 340);
+        }
+
+        function stopDressupBGM(resetFlag = true) {
+            if (resetFlag) isBgmPlaying = false;
+            if (bgmInterval) {
+                clearInterval(bgmInterval);
+                bgmInterval = null;
+            }
+        }
+
+        function toggleBGM() {
+            isBgmEnabled = !isBgmEnabled;
+            const icon = document.getElementById('bgm-icon');
+            const label = document.getElementById('bgm-label');
+
+            if (isBgmEnabled) {
+                icon.textContent = '🎵';
+                label.textContent = '音乐开';
+                if (isBgmPlaying) startDressupBGM();
+            } else {
+                icon.textContent = '🔇';
+                label.textContent = '静音';
+                stopDressupBGM(false);
+            }
+        }
+
+        // 答对欢快音效
+        function playSuccessSound() {
+            if (!isBgmEnabled) return;
+            initAudioContext();
+            const notes = [523.25, 659.25, 783.99, 1046.50];
+            notes.forEach((n, idx) => {
+                setTimeout(() => playMusicBoxNote(n, 0.25, 0.12), idx * 90);
+            });
+        }
+
+        // 答错温柔提示音效
+        function playGentleErrorSound() {
+            if (!isBgmEnabled) return;
+            initAudioContext();
+            playMusicBoxNote(330, 0.2, 0.08);
+            setTimeout(() => playMusicBoxNote(293.66, 0.3, 0.08), 140);
+        }
+
+        /* ==========================================================================
+           5. 初始化与宠物选择逻辑
+           ========================================================================== */
+        window.onload = function () {
+            // 预加载并对三只宠物图片进行自动去背处理
+            Object.keys(PET_ASSETS).forEach(key => {
+                const previewEl = document.getElementById(`preview-${key}`);
+                previewEl.src = PET_ASSETS[key].url;
+
+                removeImageBackground(PET_ASSETS[key].url, (cleanUrl, needsMultiply) => {
+                    PET_ASSETS[key].processedDataUrl = cleanUrl;
+                    PET_ASSETS[key].needsMultiply = !!needsMultiply;
+                    previewEl.src = cleanUrl;
+                    if (needsMultiply) {
+                        previewEl.classList.add('mix-blend-multiply');
+                    }
+                });
+            });
+
+            // 初始化画笔颜色盘与小装饰品栏
+            initDressupTools();
+        };
+
+        function selectPet(key, cardEl) {
+            selectedPetKey = key;
+            document.querySelectorAll('.pet-card').forEach(c => c.classList.remove('selected'));
+            cardEl.classList.add('selected');
+
+            const startBtn = document.getElementById('start-game-btn');
+            startBtn.disabled = false;
+            startBtn.className = 'px-10 py-4 rounded-2xl title-font text-2xl text-white bg-gradient-to-r from-pink-500 to-amber-500 hover:from-pink-600 hover:to-amber-600 cursor-pointer shadow-lg transform hover:scale-105 transition-all';
+            startBtn.textContent = `带着${PET_ASSETS[key].name}开始游戏！ 🚀`;
+
+            playMusicBoxNote(659.25, 0.2, 0.08);
+        }
+
+        function startGame() {
+            if (!selectedPetKey) return;
+            initAudioContext();
+
+            const pet = PET_ASSETS[selectedPetKey];
+            const finalImgUrl = pet.processedDataUrl || pet.url;
+
+            // 设置答题页小头像和舞台宠物大图
+            const thumb = document.getElementById('quiz-pet-thumb');
+            const stageImg = document.getElementById('stage-pet-img');
+            thumb.src = finalImgUrl;
+            stageImg.src = finalImgUrl;
+
+            if (pet.needsMultiply) {
+                thumb.classList.add('mix-blend-multiply');
+                stageImg.classList.add('mix-blend-multiply');
+            }
+
+            // 切换到答题界面
+            document.getElementById('screen-select').classList.add('hidden');
+            document.getElementById('screen-quiz').classList.remove('hidden');
+            document.getElementById('progress-badge').classList.remove('hidden');
+
+            currentQuestionIndex = 0;
+            loadQuestion(currentQuestionIndex);
+        }
+
+        /* ==========================================================================
+           6. 选词填空答题逻辑
+           ========================================================================== */
+        function loadQuestion(index) {
+            const q = QUIZ_QUESTIONS[index];
+            document.getElementById('progress-text').textContent = `${index + 1} / ${QUIZ_QUESTIONS.length}`;
+            document.getElementById('section-badge').textContent = q.section;
+
+            // 渲染方框词库
+            const bankBox = document.getElementById('word-bank-box');
+            bankBox.innerHTML = '';
+            if (q.roundedBank) {
+                bankBox.classList.add('rounded-xl');
+            } else {
+                bankBox.classList.remove('rounded-xl');
+            }
+
+            q.wordBank.forEach(word => {
+                const chip = document.createElement('button');
+                chip.type = 'button';
+                chip.className = 'word-chip worksheet-font text-xl sm:text-2xl font-bold px-3.5 py-1.5 rounded-lg bg-white hover:bg-pink-100 text-gray-800 border border-gray-300 shadow-xs';
+                chip.textContent = word;
+                chip.onclick = () => {
+                    const input = document.getElementById('q-input');
+                    input.value = word;
+                    input.focus();
+                    playMusicBoxNote(783.99, 0.15, 0.06);
+                };
+                bankBox.appendChild(chip);
+            });
+
+            // 渲染题目（横线输入框保持完全留白，无 placeholder）
+            document.getElementById('q-prefix').textContent = q.prefix;
+            document.getElementById('q-suffix').textContent = q.suffix;
+
+            const inputEl = document.getElementById('q-input');
+            inputEl.value = '';
+            document.getElementById('quiz-feedback').textContent = '';
+            setTimeout(() => inputEl.focus(), 100);
+        }
+
+        // 支持按回车键直接提交答案
+        document.getElementById('q-input').addEventListener('keydown', function (e) {
+            if (e.key === 'Enter') {
+                submitAnswer();
+            }
+        });
+
+        function clearBlank() {
+            const inputEl = document.getElementById('q-input');
+            inputEl.value = '';
+            inputEl.focus();
+        }
+
+        function submitAnswer() {
+            const q = QUIZ_QUESTIONS[currentQuestionIndex];
+            const inputEl = document.getElementById('q-input');
+            const feedbackEl = document.getElementById('quiz-feedback');
+            const userVal = inputEl.value.trim();
+
+            if (!userVal) {
+                feedbackEl.innerHTML = '<span class="text-amber-600">✍️ 请先在横线上填入词语哦！</span>';
+                triggerShake(document.getElementById('question-card'));
+                return;
+            }
+
+            if (q.answers.includes(userVal)) {
+                // 答对了！
+                playSuccessSound();
+                feedbackEl.innerHTML = '<span class="text-emerald-600 text-xl">🎉 太棒了！答对啦！获得 30 秒便装时间！</span>';
+
+                setTimeout(() => {
+                    enterDressupMode();
+                }, 950);
+            } else {
+                // 答错了，温柔鼓励再试一次
+                playGentleErrorSound();
+                feedbackEl.innerHTML = '<span class="text-rose-500">💡 再仔细想想，换个词语试试看哦！</span>';
+                triggerShake(document.getElementById('question-card'));
+                inputEl.select();
+            }
+        }
+
+        function triggerShake(el) {
+            el.classList.remove('animate-shake');
+            void el.offsetWidth;
+            el.classList.add('animate-shake');
+        }
+
+        /* ==========================================================================
+           7. 30秒便装时刻：画笔涂鸦 + 贴纸装饰 + 背景音乐 + 倒计时
+           ========================================================================== */
+        function initDressupTools() {
+            // 1. 生成颜色按钮
+            const paletteEl = document.getElementById('color-palette');
+            BRUSH_COLORS.forEach((color, idx) => {
+                const btn = document.createElement('button');
+                btn.type = 'button';
+                btn.className = `w-7 h-7 rounded-full border-2 shadow-xs transition transform hover:scale-110 ${idx === 0 ? 'ring-2 ring-offset-1 ring-sky-500 scale-110' : 'border-gray-300'}`;
+                btn.style.backgroundColor = color;
+                btn.onclick = () => {
+                    isEraser = false;
+                    document.getElementById('eraser-btn').classList.remove('bg-amber-200', 'border-amber-500');
+                    currentColor = color;
+                    document.querySelectorAll('#color-palette button').forEach(b => {
+                        b.classList.remove('ring-2', 'ring-offset-1', 'ring-sky-500', 'scale-110');
+                    });
+                    btn.classList.add('ring-2', 'ring-offset-1', 'ring-sky-500', 'scale-110');
+                };
+                paletteEl.appendChild(btn);
+            });
+
+            // 2. 生成可爱小装饰品按钮
+            const trayEl = document.getElementById('sticker-tray');
+            STICKER_ITEMS.forEach(item => {
+                const btn = document.createElement('button');
+                btn.type = 'button';
+                btn.className = 'flex flex-col items-center justify-center p-2 rounded-xl bg-white hover:bg-pink-100 border border-pink-200 shadow-xs transition transform active:scale-95';
+                btn.innerHTML = `<span class="text-2xl leading-none">${item.emoji}</span><span class="text-[11px] text-gray-600 font-bold mt-1">${item.label}</span>`;
+                btn.onclick = () => addStickerToStage(item.emoji);
+                trayEl.appendChild(btn);
+            });
+
+            // 3. 初始化涂鸦画布事件
+            canvas = document.getElementById('doodle-canvas');
+            ctx = canvas.getContext('2d');
+
+            // 监听窗口大小变化，实时同步画布比例
+            window.addEventListener('resize', () => {
+                if (isDressupActive) resizeCanvasPreserveContent();
+            });
+
+            // 鼠标移动时更新画笔笔头预览位置
+            canvas.addEventListener('mousemove', (e) => {
+                updateBrushCursor(e);
+                drawMove(e);
+            });
+            canvas.addEventListener('mouseenter', (e) => {
+                if (isDressupActive) {
+                    document.getElementById('brush-cursor').style.display = 'block';
+                    updateBrushCursor(e);
+                }
+            });
+            canvas.addEventListener('mouseleave', () => {
+                document.getElementById('brush-cursor').style.display = 'none';
+            });
+
+            canvas.addEventListener('mousedown', startDraw);
+            window.addEventListener('mouseup', stopDraw);
+
+            canvas.addEventListener('touchstart', startDraw, { passive: false });
+            canvas.addEventListener('touchmove', drawMove, { passive: false });
+            window.addEventListener('touchend', stopDraw);
+        }
+
+        // 确保画布内部分辨率与实际显示尺寸 1:1 严格对齐，彻底消除坐标偏移
+        function resizeCanvasPreserveContent() {
+            const rect = canvas.getBoundingClientRect();
+            const targetW = Math.round(rect.width);
+            const targetH = Math.round(rect.height);
+            if (targetW <= 0 || targetH <= 0) return;
+
+            if (canvas.width !== targetW || canvas.height !== targetH) {
+                const tempCanvas = document.createElement('canvas');
+                tempCanvas.width = canvas.width;
+                tempCanvas.height = canvas.height;
+                if (canvas.width > 0 && canvas.height > 0) {
+                    tempCanvas.getContext('2d').drawImage(canvas, 0, 0);
+                }
+
+                canvas.width = targetW;
+                canvas.height = targetH;
+
+                if (tempCanvas.width > 0 && tempCanvas.height > 0) {
+                    ctx.drawImage(tempCanvas, 0, 0, canvas.width, canvas.height);
+                }
+            }
+        }
+
+        function enterDressupMode() {
+            document.getElementById('screen-quiz').classList.add('hidden');
+            const dressupScreen = document.getElementById('screen-dressup');
+            dressupScreen.classList.remove('hidden');
+
+            // 立即校准一次，并在下一帧动画完成后再次确保 1:1 尺寸精准匹配
+            resizeCanvasPreserveContent();
+            requestAnimationFrame(() => resizeCanvasPreserveContent());
+            setTimeout(() => resizeCanvasPreserveContent(), 420);
+
+            // 开启舒服可爱的背景音乐
+            startDressupBGM();
+
+            // 启动 30 秒倒计时
+            isDressupActive = true;
+            remainingSeconds = 30;
+            updateTimerUI();
+
+            if (dressupTimer) clearInterval(dressupTimer);
+            dressupTimer = setInterval(() => {
+                remainingSeconds--;
+                updateTimerUI();
+
+                if (remainingSeconds <= 0) {
+                    finishDressupRound(true);
+                }
+            }, 1000);
+        }
+
+        function updateTimerUI() {
+            const display = document.getElementById('timer-display');
+            const box = document.getElementById('timer-box');
+            display.textContent = `${remainingSeconds}s`;
+
+            if (remainingSeconds <= 5) {
+                display.classList.add('text-red-600', 'animate-ping');
+                box.classList.add('border-red-500', 'bg-red-50');
+            } else {
+                display.classList.remove('text-red-600', 'animate-ping');
+                box.classList.remove('border-red-500', 'bg-red-50');
+            }
+        }
+
+        function endDressupEarly() {
+            finishDressupRound(false);
+        }
+
+        function finishDressupRound(isTimeUp) {
+            if (!isDressupActive) return;
+            isDressupActive = false;
+            isDrawing = false;
+
+            if (dressupTimer) {
+                clearInterval(dressupTimer);
+                dressupTimer = null;
+            }
+
+            // 暂停便装音乐
+            stopDressupBGM();
+            selectActiveSticker(null);
+
+            const isLastQuestion = currentQuestionIndex >= QUIZ_QUESTIONS.length - 1;
+
+            if (isTimeUp) {
+                const desc = document.getElementById('timeup-desc');
+                desc.textContent = isLastQuestion
+                    ? '太棒了！你已经完成了全部题目，快去看看最终的便装秀大展示吧！'
+                    : '你的涂鸦和装饰品都已保存好啦！继续答对下一题，就能再次获得 30 秒继续装扮哦！';
+                document.getElementById('timeup-modal').classList.remove('hidden');
+            } else {
+                proceedAfterDressup();
+            }
+        }
+
+        function proceedAfterDressup() {
+            document.getElementById('timeup-modal').classList.add('hidden');
+            currentQuestionIndex++;
+
+            if (currentQuestionIndex < QUIZ_QUESTIONS.length) {
+                // 返回答题模式，进入下一题
+                document.getElementById('screen-dressup').classList.add('hidden');
+                document.getElementById('screen-quiz').classList.remove('hidden');
+                loadQuestion(currentQuestionIndex);
+            } else {
+                // 全部 13 题完成，进入最终大展示舞台！
+                showGrandFinale();
+            }
+        }
+
+        /* --- 画布自由涂鸦逻辑 --- */
+        function getCanvasPoint(e) {
+            const rect = canvas.getBoundingClientRect();
+            const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+            const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+
+            // 按比例映射指针坐标到画布真实像素坐标，杜绝任何偏移
+            const scaleX = rect.width > 0 ? (canvas.width / rect.width) : 1;
+            const scaleY = rect.height > 0 ? (canvas.height / rect.height) : 1;
+
+            return {
+                x: (clientX - rect.left) * scaleX,
+                y: (clientY - rect.top) * scaleY
+            };
+        }
+
+        function updateBrushCursor(e) {
+            if (!isDressupActive) return;
+            const cursorEl = document.getElementById('brush-cursor');
+            const wrapperRect = document.getElementById('stage-wrapper').getBoundingClientRect();
+            const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+            const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+
+            const size = Math.max(currentBrushSize, 6);
+            cursorEl.style.width = `${size}px`;
+            cursorEl.style.height = `${size}px`;
+            cursorEl.style.left = `${clientX - wrapperRect.left}px`;
+            cursorEl.style.top = `${clientY - wrapperRect.top}px`;
+
+            if (isEraser) {
+                cursorEl.style.backgroundColor = 'rgba(255, 255, 255, 0.85)';
+                cursorEl.style.border = '2px dashed #6B7280';
+            } else {
+                cursorEl.style.backgroundColor = currentColor;
+                cursorEl.style.border = '2px solid #FFFFFF';
+                cursorEl.style.boxShadow = '0 0 0 1px rgba(0,0,0,0.35)';
+            }
+        }
+
+        function startDraw(e) {
+            if (!isDressupActive) return;
+            if (e.cancelable) e.preventDefault();
+            selectActiveSticker(null);
+
+            // 下笔前实时检查一次画布尺寸是否与当前显示完全一致
+            resizeCanvasPreserveContent();
+
+            isDrawing = true;
+            const pt = getCanvasPoint(e);
+            ctx.beginPath();
+            ctx.moveTo(pt.x, pt.y);
+            drawPoint(pt.x, pt.y);
+        }
+
+        function drawMove(e) {
+            if (!isDrawing || !isDressupActive) return;
+            if (e.cancelable) e.preventDefault();
+            const pt = getCanvasPoint(e);
+            drawPoint(pt.x, pt.y);
+        }
+
+        function drawPoint(x, y) {
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+            ctx.lineWidth = currentBrushSize;
+
+            if (isEraser) {
+                ctx.globalCompositeOperation = 'destination-out';
+                ctx.strokeStyle = 'rgba(0,0,0,1)';
+            } else {
+                ctx.globalCompositeOperation = 'source-over';
+                ctx.strokeStyle = currentColor;
+            }
+
+            ctx.lineTo(x, y);
+            ctx.stroke();
+            ctx.beginPath();
+            ctx.moveTo(x, y);
+        }
+
+        function stopDraw() {
+            if (!isDrawing) return;
+            isDrawing = false;
+            ctx.beginPath();
+        }
+
+        function setBrushSize(size, btnEl) {
+            currentBrushSize = size;
+            isEraser = false;
+            document.getElementById('eraser-btn').classList.remove('bg-amber-200', 'border-amber-500');
+
+            document.querySelectorAll('.brush-size-btn').forEach(b => {
+                b.className = 'brush-size-btn py-1.5 rounded-lg bg-white border-2 border-sky-200 text-xs font-bold flex items-center justify-center gap-1';
+            });
+            btnEl.className = 'brush-size-btn py-1.5 rounded-lg bg-sky-500 text-white border-2 border-sky-500 text-xs font-bold flex items-center justify-center gap-1';
+        }
+
+        function toggleEraser() {
+            isEraser = !isEraser;
+            const btn = document.getElementById('eraser-btn');
+            if (isEraser) {
+                btn.classList.add('bg-amber-200', 'border-amber-500');
+                showToast('🧼 已切换到橡皮擦模式');
+            } else {
+                btn.classList.remove('bg-amber-200', 'border-amber-500');
+                showToast('🖌️ 已切换回彩色画笔');
+            }
+        }
+
+        function clearDrawingLayer() {
+            if (!isDressupActive) return;
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            showToast('✨ 涂鸦已清空');
+        }
+
+        /* --- 可爱小装饰品拖拽与缩放逻辑 --- */
+        function addStickerToStage(emoji) {
+            if (!isDressupActive) return;
+            const layer = document.getElementById('stickers-layer');
+            const wrapper = document.getElementById('stage-wrapper');
+            const w = wrapper.clientWidth || 320;
+            const h = wrapper.clientHeight || 320;
+
+            const sticker = document.createElement('div');
+            sticker.className = 'sticker-item pointer-events-auto text-5xl leading-none';
+            sticker.textContent = emoji;
+
+            // 初始位置略微错开，避免重叠
+            const offsetX = (Math.random() - 0.5) * 60;
+            const offsetY = (Math.random() - 0.5) * 60;
+            const initX = w / 2 - 24 + offsetX;
+            const initY = h / 2 - 24 + offsetY;
+
+            sticker.style.left = `${initX}px`;
+            sticker.style.top = `${initY}px`;
+            sticker.dataset.scale = '1';
+            sticker.dataset.rotate = '0';
+
+            makeStickerInteractive(sticker);
+            layer.appendChild(sticker);
+            selectActiveSticker(sticker);
+            playMusicBoxNote(880, 0.15, 0.07);
+        }
+
+        function makeStickerInteractive(el) {
+            let startX, startY, origLeft, origTop;
+            let dragging = false;
+
+            const onDown = (e) => {
+                if (!isDressupActive) return;
+                e.stopPropagation();
+                if (e.cancelable) e.preventDefault();
+                selectActiveSticker(el);
+
+                dragging = true;
+                const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+                const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+                startX = clientX;
+                startY = clientY;
+                origLeft = parseFloat(el.style.left) || 0;
+                origTop = parseFloat(el.style.top) || 0;
+            };
+
+            const onMove = (e) => {
+                if (!dragging) return;
+                if (e.cancelable) e.preventDefault();
+                const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+                const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+                const dx = clientX - startX;
+                const dy = clientY - startY;
+
+                el.style.left = `${origLeft + dx}px`;
+                el.style.top = `${origTop + dy}px`;
+            };
+
+            const onUp = () => {
+                dragging = false;
+            };
+
+            el.addEventListener('mousedown', onDown);
+            el.addEventListener('touchstart', onDown, { passive: false });
+            window.addEventListener('mousemove', onMove);
+            window.addEventListener('touchmove', onMove, { passive: false });
+            window.addEventListener('mouseup', onUp);
+            window.addEventListener('touchend', onUp);
+        }
+
+        function selectActiveSticker(el) {
+            document.querySelectorAll('.sticker-item').forEach(s => s.classList.remove('active-sticker'));
+            activeStickerEl = el;
+            if (el) {
+                el.classList.add('active-sticker');
+            }
+        }
+
+        function adjustActiveSticker(prop, delta) {
+            if (!activeStickerEl) {
+                showToast('👆 请先点击舞台上的小饰品再调整哦');
+                return;
+            }
+            if (prop === 'scale') {
+                let s = parseFloat(activeStickerEl.dataset.scale || '1') + delta;
+                s = Math.max(0.4, Math.min(2.6, s));
+                activeStickerEl.dataset.scale = s.toFixed(2);
+            } else if (prop === 'rotate') {
+                let r = parseFloat(activeStickerEl.dataset.rotate || '0') + delta;
+                activeStickerEl.dataset.rotate = r;
+            }
+            const scale = activeStickerEl.dataset.scale;
+            const rotate = activeStickerEl.dataset.rotate;
+            activeStickerEl.style.transform = `scale(${scale}) rotate(${rotate}deg)`;
+        }
+
+        function deleteActiveSticker() {
+            if (!activeStickerEl) {
+                showToast('👆 请先点击舞台上的小饰品');
+                return;
+            }
+            activeStickerEl.remove();
+            activeStickerEl = null;
+        }
+
+        /* ==========================================================================
+           8. 最终大展示与合成纪念照导出
+           ========================================================================== */
+        function showGrandFinale() {
+            document.getElementById('screen-quiz').classList.add('hidden');
+            document.getElementById('screen-dressup').classList.add('hidden');
+            document.getElementById('screen-finale').classList.remove('hidden');
+
+            playSuccessSound();
+            renderCompositeArtwork((dataUrl) => {
+                document.getElementById('final-showcase-img').src = dataUrl;
+            });
+        }
+
+        function renderCompositeArtwork(callback) {
+            const wrapper = document.getElementById('stage-wrapper');
+            const size = 500;
+            const outCanvas = document.createElement('canvas');
+            outCanvas.width = size;
+            outCanvas.height = size;
+            const oCtx = outCanvas.getContext('2d');
+
+            // 1. 绘制暖色舞台背景
+            const grad = oCtx.createRadialGradient(size / 2, size / 2, 20, size / 2, size / 2, size / 1.4);
+            grad.addColorStop(0, '#FFFFFF');
+            grad.addColorStop(0.6, '#FFF7ED');
+            grad.addColorStop(1, '#FDE68A');
+            oCtx.fillStyle = grad;
+            oCtx.fillRect(0, 0, size, size);
+
+            // 2. 绘制去背宠物
+            const petImg = document.getElementById('stage-pet-img');
+            const pad = size * 0.08;
+            if (petImg.complete && petImg.naturalWidth > 0) {
+                const ratio = Math.min((size - pad * 2) / petImg.naturalWidth, (size - pad * 2) / petImg.naturalHeight);
+                const drawW = petImg.naturalWidth * ratio;
+                const drawH = petImg.naturalHeight * ratio;
+                oCtx.drawImage(petImg, (size - drawW) / 2, (size - drawH) / 2, drawW, drawH);
+            }
+
+            // 3. 绘制涂鸦层
+            if (canvas.width > 0 && canvas.height > 0) {
+                oCtx.drawImage(canvas, 0, 0, size, size);
+            }
+
+            // 4. 绘制所有小装饰品
+            const stageW = wrapper.clientWidth || 360;
+            const scaleFactor = size / stageW;
+            const stickers = document.querySelectorAll('#stickers-layer .sticker-item');
+            stickers.forEach(s => {
+                const left = parseFloat(s.style.left) || 0;
+                const top = parseFloat(s.style.top) || 0;
+                const sc = parseFloat(s.dataset.scale || '1');
+                const rot = parseFloat(s.dataset.rotate || '0') * Math.PI / 180;
+
+                const fontSize = 48 * scaleFactor * sc;
+                const cx = (left + 24) * scaleFactor;
+                const cy = (top + 24) * scaleFactor;
+
+                oCtx.save();
+                oCtx.translate(cx, cy);
+                oCtx.rotate(rot);
+                oCtx.font = `${fontSize}px sans-serif`;
+                oCtx.textAlign = 'center';
+                oCtx.textBaseline = 'middle';
+                oCtx.fillText(s.textContent, 0, 0);
+                oCtx.restore();
+            });
+
+            callback(outCanvas.toDataURL('image/png'));
+        }
+
+        function downloadArtwork() {
+            const imgSrc = document.getElementById('final-showcase-img').src;
+            const link = document.createElement('a');
+            link.download = `萌宠便装秀_${PET_ASSETS[selectedPetKey].name}.png`;
+            link.href = imgSrc;
+            link.click();
+            showToast('📸 便装纪念照已开始下载！');
+        }
+
+        function showToast(msg) {
+            const toast = document.getElementById('toast-msg');
+            toast.textContent = msg;
+            toast.classList.remove('hidden');
+            clearTimeout(toast._t);
+            toast._t = setTimeout(() => {
+                toast.classList.add('hidden');
+            }, 2200);
+        }
+    </script>
+</body>
+</html>

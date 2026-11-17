@@ -1,0 +1,1298 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>按部首写字组词大比拼 - 粉队 vs 黄队</title>
+    <style>
+        :root {
+            --pink-main: #ff5d8f;
+            --pink-light: #ffccd5;
+            --pink-fill: #ff85a2;
+            --pink-dark: #c9184a;
+            --yellow-main: #ffb703;
+            --yellow-light: #fff3b0;
+            --yellow-fill: #ffd166;
+            --yellow-dark: #b5651d;
+            --bg-arena: #1e2235;
+            --paper-bg: #fffdf9;
+        }
+
+        * {
+            box-sizing: border-box;
+            user-select: none;
+        }
+
+        body {
+            font-family: "PingFang SC", "Microsoft YaHei", sans-serif;
+            background: radial-gradient(circle at top, #2b3152 0%, #161929 100%);
+            color: #222;
+            margin: 0;
+            padding: 15px;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        /* 顶部控制台：全局计时、比分、音乐开关 */
+        .top-hud {
+            width: 100%;
+            max-width: 960px;
+            display: grid;
+            grid-template-columns: 1fr auto 1fr;
+            align-items: center;
+            gap: 15px;
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.18);
+            border-radius: 16px;
+            padding: 12px 20px;
+            margin-bottom: 16px;
+            color: #fff;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+        }
+
+        .team-score-card {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 10px 18px;
+            border-radius: 12px;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .team-score-card.pink {
+            background: linear-gradient(135deg, rgba(255, 93, 143, 0.35), rgba(201, 24, 74, 0.45));
+            border: 2px solid var(--pink-main);
+        }
+
+        .team-score-card.yellow {
+            background: linear-gradient(135deg, rgba(255, 183, 3, 0.35), rgba(217, 119, 6, 0.45));
+            border: 2px solid var(--yellow-main);
+        }
+
+        .team-score-card.active-turn {
+            transform: scale(1.04);
+            box-shadow: 0 0 20px currentColor;
+        }
+
+        .team-info h2 {
+            margin: 0;
+            font-size: 18px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .team-stats {
+            font-size: 13px;
+            opacity: 0.9;
+            margin-top: 4px;
+        }
+
+        .score-num {
+            font-size: 32px;
+            font-weight: 900;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .center-timer-box {
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .global-timer {
+            font-size: 30px;
+            font-weight: 900;
+            letter-spacing: 2px;
+            background: #0f1221;
+            padding: 6px 18px;
+            border-radius: 10px;
+            border: 2px solid #4cc9f0;
+            color: #4cc9f0;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .global-timer.urgent {
+            border-color: #ff4d6d;
+            color: #ff4d6d;
+            animation: pulse 0.8s infinite;
+        }
+
+        .hud-controls {
+            display: flex;
+            gap: 8px;
+        }
+
+        .btn-mini {
+            background: rgba(255, 255, 255, 0.15);
+            color: #fff;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn-mini:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+
+        /* 抢答控制栏与30秒倒计时条 */
+        .buzz-arena {
+            width: 100%;
+            max-width: 960px;
+            display: grid;
+            grid-template-columns: 1fr 1.4fr 1fr;
+            gap: 15px;
+            align-items: center;
+            margin-bottom: 16px;
+        }
+
+        .buzz-btn {
+            border: none;
+            border-radius: 16px;
+            padding: 16px 20px;
+            font-size: 20px;
+            font-weight: 900;
+            cursor: pointer;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 4px;
+            transition: all 0.15s;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .buzz-btn span.key-hint {
+            font-size: 12px;
+            font-weight: normal;
+            opacity: 0.85;
+        }
+
+        .buzz-btn.pink {
+            background: linear-gradient(180deg, #ff758f 0%, #ff4d6d 100%);
+            color: white;
+            box-shadow: 0 6px 0 #a4133c, 0 10px 20px rgba(255, 77, 109, 0.4);
+        }
+
+        .buzz-btn.pink:active:not(:disabled) {
+            transform: translateY(4px);
+            box-shadow: 0 2px 0 #a4133c;
+        }
+
+        .buzz-btn.yellow {
+            background: linear-gradient(180deg, #ffd166 0%, #ffb703 100%);
+            color: #3d2600;
+            box-shadow: 0 6px 0 #b5651d, 0 10px 20px rgba(255, 183, 3, 0.4);
+        }
+
+        .buzz-btn.yellow:active:not(:disabled) {
+            transform: translateY(4px);
+            box-shadow: 0 2px 0 #b5651d;
+        }
+
+        .buzz-btn:disabled {
+            opacity: 0.35;
+            cursor: not-allowed;
+            filter: grayscale(0.5);
+            transform: none;
+        }
+
+        .turn-status-panel {
+            background: rgba(255, 255, 255, 0.12);
+            border-radius: 16px;
+            padding: 12px 18px;
+            text-align: center;
+            color: #fff;
+            border: 1px solid rgba(255,255,255,0.15);
+        }
+
+        .turn-message {
+            font-size: 16px;
+            font-weight: bold;
+            margin-bottom: 8px;
+            min-height: 24px;
+        }
+
+        .turn-timer-bar-bg {
+            width: 100%;
+            height: 14px;
+            background: rgba(0, 0, 0, 0.4);
+            border-radius: 7px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .turn-timer-bar-fill {
+            height: 100%;
+            width: 100%;
+            background: #4cc9f0;
+            transition: width 0.25s linear, background-color 0.3s;
+        }
+
+        .turn-timer-text {
+            font-size: 13px;
+            margin-top: 5px;
+            color: #cbd5e1;
+        }
+
+        /* 试卷主体（完全保留原题结构与无提示词留白风格） */
+        .worksheet {
+            background-color: var(--paper-bg);
+            width: 100%;
+            max-width: 960px;
+            padding: 32px 45px;
+            border-radius: 14px;
+            box-shadow: 0 12px 35px rgba(0, 0, 0, 0.4);
+            font-family: "KaiTi", "STKaiti", "楷体", "SimSun", serif;
+            position: relative;
+        }
+
+        .worksheet-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 18px;
+            border-bottom: 2px dashed #e2e8f0;
+            padding-bottom: 12px;
+        }
+
+        .title {
+            font-size: 24px;
+            font-weight: bold;
+            color: #1e293b;
+            letter-spacing: 1px;
+        }
+
+        .action-submit-btn {
+            font-family: "PingFang SC", "Microsoft YaHei", sans-serif;
+            background: #10b981;
+            color: white;
+            border: none;
+            padding: 10px 24px;
+            font-size: 16px;
+            font-weight: bold;
+            border-radius: 10px;
+            cursor: pointer;
+            box-shadow: 0 4px 0 #047857;
+            transition: all 0.15s;
+            display: none;
+        }
+
+        .action-submit-btn.visible {
+            display: inline-block;
+            animation: bounceIn 0.3s;
+        }
+
+        .action-submit-btn:active {
+            transform: translateY(3px);
+            box-shadow: 0 1px 0 #047857;
+        }
+
+        /* 网格布局：完全对齐原练习题 */
+        .row {
+            display: grid;
+            grid-template-columns: 75px 1fr 1fr;
+            align-items: center;
+            margin-bottom: 18px;
+            font-size: 21px;
+        }
+
+        .example-row {
+            margin-bottom: 24px;
+            color: #475569;
+            background: #f8fafc;
+            padding: 8px 12px;
+            border-radius: 8px;
+        }
+
+        .radical {
+            font-size: 26px;
+            font-weight: bold;
+            text-align: center;
+            color: #0f172a;
+        }
+
+        .example-label {
+            font-size: 19px;
+            font-weight: bold;
+            text-align: center;
+        }
+
+        /* 每个独立抢答组（① 或 ②） */
+        .item-group {
+            display: flex;
+            align-items: baseline;
+            padding: 8px 14px;
+            border-radius: 10px;
+            border: 2px solid transparent;
+            transition: all 0.25s ease;
+            margin-right: 12px;
+        }
+
+        /* 可作答状态高亮提示 */
+        .worksheet.can-answer .item-group:not(.claimed) {
+            background-color: #f8fafc;
+            border-color: #cbd5e1;
+        }
+
+        .worksheet.can-answer .item-group:not(.claimed):focus-within {
+            border-color: #3b82f6;
+            background-color: #eff6ff;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+        }
+
+        /* 被粉队占领 */
+        .item-group.claimed-pink {
+            background-color: var(--pink-fill) !important;
+            border-color: var(--pink-dark) !important;
+            box-shadow: 0 3px 10px rgba(255, 93, 143, 0.3);
+        }
+
+        .item-group.claimed-pink input {
+            color: #4a0418 !important;
+            font-weight: bold;
+            border-bottom-color: #4a0418 !important;
+        }
+
+        /* 被黄队占领 */
+        .item-group.claimed-yellow {
+            background-color: var(--yellow-fill) !important;
+            border-color: var(--yellow-dark) !important;
+            box-shadow: 0 3px 10px rgba(255, 183, 3, 0.35);
+        }
+
+        .item-group.claimed-yellow input {
+            color: #3d2200 !important;
+            font-weight: bold;
+            border-bottom-color: #3d2200 !important;
+        }
+
+        .num {
+            margin-right: 10px;
+            font-size: 19px;
+            font-weight: bold;
+        }
+
+        .equals {
+            margin: 0 12px;
+            font-weight: bold;
+        }
+
+        .static-underline {
+            display: inline-block;
+            border-bottom: 1.5px solid #475569;
+            text-align: center;
+            padding: 0 6px 2px 6px;
+        }
+
+        .static-char { min-width: 40px; }
+        .static-word { min-width: 85px; }
+
+        /* 留白输入框：无任何 placeholder */
+        input[type="text"] {
+            font-family: "KaiTi", "STKaiti", "楷体", serif;
+            font-size: 24px;
+            color: #1e293b;
+            border: none;
+            border-bottom: 2px solid #334155;
+            background: transparent;
+            text-align: center;
+            outline: none;
+            padding: 2px 4px;
+            transition: all 0.2s;
+        }
+
+        input[type="text"]:disabled {
+            cursor: not-allowed;
+        }
+
+        .input-char {
+            width: 58px;
+        }
+
+        .input-word {
+            width: 125px;
+        }
+
+        /* 反馈浮动提示（Toast） */
+        .feedback-banner {
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%) translateY(-100px);
+            background: #1e293b;
+            color: #fff;
+            padding: 12px 28px;
+            border-radius: 30px;
+            font-size: 18px;
+            font-weight: bold;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.4);
+            z-index: 1000;
+            transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            pointer-events: none;
+        }
+
+        .feedback-banner.show {
+            transform: translateX(-50%) translateY(0);
+        }
+
+        .feedback-banner.success { background: #10b981; }
+        .feedback-banner.error { background: #ef4444; }
+
+        /* 遮罩弹窗（开始引导 & 终局结算） */
+        .modal-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(15, 23, 42, 0.85);
+            backdrop-filter: blur(6px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 2000;
+            padding: 20px;
+        }
+
+        .modal-overlay.hidden {
+            display: none;
+        }
+
+        .modal-card {
+            background: #fff;
+            max-width: 520px;
+            width: 100%;
+            border-radius: 24px;
+            padding: 32px;
+            text-align: center;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+            animation: bounceIn 0.35s ease;
+        }
+
+        .modal-card h1 {
+            margin: 0 0 12px 0;
+            font-size: 28px;
+            color: #0f172a;
+        }
+
+        .rules-list {
+            text-align: left;
+            background: #f8fafc;
+            padding: 16px 20px;
+            border-radius: 14px;
+            font-size: 15px;
+            line-height: 1.7;
+            color: #334155;
+            margin: 18px 0 24px 0;
+        }
+
+        .start-btn {
+            background: linear-gradient(135deg, #ff5d8f 0%, #ffb703 100%);
+            color: #fff;
+            border: none;
+            padding: 14px 40px;
+            font-size: 20px;
+            font-weight: 900;
+            border-radius: 30px;
+            cursor: pointer;
+            box-shadow: 0 8px 20px rgba(255, 93, 143, 0.4);
+            transition: transform 0.15s;
+        }
+
+        .start-btn:hover {
+            transform: scale(1.05);
+        }
+
+        .result-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin: 20px 0;
+        }
+
+        .result-box {
+            padding: 16px;
+            border-radius: 16px;
+        }
+
+        .result-box.pink { background: var(--pink-light); border: 2px solid var(--pink-main); }
+        .result-box.yellow { background: var(--yellow-light); border: 2px solid var(--yellow-main); }
+
+        .big-count {
+            font-size: 36px;
+            font-weight: 900;
+            margin: 6px 0;
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.06); }
+        }
+
+        @keyframes bounceIn {
+            0% { transform: scale(0.85); opacity: 0; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            20%, 60% { transform: translateX(-8px); }
+            40%, 80% { transform: translateX(8px); }
+        }
+
+        .shake {
+            animation: shake 0.4s;
+        }
+
+        @media (max-width: 768px) {
+            .top-hud { grid-template-columns: 1fr; text-align: center; }
+            .buzz-arena { grid-template-columns: 1fr; }
+            .worksheet { padding: 20px 15px; }
+            .row { grid-template-columns: 45px 1fr; row-gap: 10px; }
+            .radical { grid-row: span 2; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- 顶部浮动反馈条 -->
+    <div id="feedbackBanner" class="feedback-banner">提示信息</div>
+
+    <!-- 顶部实时计分与5分钟全局倒计时 -->
+    <div class="top-hud">
+        <div id="pinkScoreCard" class="team-score-card pink">
+            <div class="team-info">
+                <h2>🌸 粉队 (Pink)</h2>
+                <div class="team-stats">已占领格子：<strong id="pinkTerritory">0</strong> / 12</div>
+            </div>
+            <div class="score-num" id="pinkScore">0</div>
+        </div>
+
+        <div class="center-timer-box">
+            <div id="globalTimer" class="global-timer">05:00</div>
+            <div class="hud-controls">
+                <button id="bgmToggleBtn" class="btn-mini" onclick="toggleBGM()">🎵 背景音乐：开</button>
+                <button class="btn-mini" onclick="endGame(true)">🏁 提前结算</button>
+            </div>
+        </div>
+
+        <div id="yellowScoreCard" class="team-score-card yellow">
+            <div class="team-info">
+                <h2>⭐ 黄队 (Yellow)</h2>
+                <div class="team-stats">已占领格子：<strong id="yellowTerritory">0</strong> / 12</div>
+            </div>
+            <div class="score-num" id="yellowScore">0</div>
+        </div>
+    </div>
+
+    <!-- 抢答按钮与30秒单轮计时区 -->
+    <div class="buzz-arena">
+        <button id="pinkBuzzBtn" class="buzz-btn pink" onclick="claimTurn('pink')" disabled>
+            <span>🌸 粉队抢答！</span>
+            <span class="key-hint">点击或按 [Q] 键</span>
+        </button>
+
+        <div class="turn-status-panel">
+            <div id="turnMessage" class="turn-message">请先点击队伍颜色按钮抢答！</div>
+            <div class="turn-timer-bar-bg">
+                <div id="turnTimerBar" class="turn-timer-bar-fill"></div>
+            </div>
+            <div id="turnTimerText" class="turn-timer-text">每轮作答限时 30 秒</div>
+        </div>
+
+        <button id="yellowBuzzBtn" class="buzz-btn yellow" onclick="claimTurn('yellow')" disabled>
+            <span>⭐ 黄队抢答！</span>
+            <span class="key-hint">点击或按 [P] 键</span>
+        </button>
+    </div>
+
+    <!-- 练习题主纸面（完全保留原图内容与留白风格） -->
+    <div id="worksheet" class="worksheet">
+        <div class="worksheet-header">
+            <div class="title">写出有下列部首的汉字，然后组词。</div>
+            <button id="submitAnswerBtn" class="action-submit-btn" onclick="submitCurrentAnswer()">✅ 提交判定 (Enter)</button>
+        </div>
+
+        <!-- 例题 -->
+        <div class="row example-row">
+            <div class="example-label">例：口</div>
+            <div class="item-group">
+                <span class="num">①</span>
+                <span class="static-underline static-char">吃</span>
+                <span class="equals">=</span>
+                <span class="static-underline static-word">吃饭</span>
+            </div>
+            <div class="item-group">
+                <span class="num">②</span>
+                <span class="static-underline static-char">喝</span>
+                <span class="equals">=</span>
+                <span class="static-underline static-word">喝水</span>
+            </div>
+        </div>
+
+        <!-- 动态生成的6行部首题目容器 -->
+        <div id="questionsContainer"></div>
+    </div>
+
+    <!-- 开始游戏引导弹窗 -->
+    <div id="startModal" class="modal-overlay">
+        <div class="modal-card">
+            <h1>⚔️ 按部首写字组词大比拼</h1>
+            <p style="color:#64748b; margin:0;">粉队 vs 黄队 · 限时抢答占格对抗赛</p>
+            <div class="rules-list">
+                <strong>📜 比赛规则：</strong><br>
+                1. <strong>先抢后答</strong>：作答前必须先按下本队颜色按钮（粉队按 <b>Q</b>，黄队按 <b>P</b>），抢到后锁定对方。<br>
+                2. <strong>30秒限时</strong>：抢答成功后有 <b>30秒</b> 时间任选一个空白题组填入【部首汉字】与【组词】并提交。<br>
+                3. <strong>加减分与染色</strong>：答对 <b>+1分</b>，该题组永久染成你队的代表颜色！答错或超时 <b>-1分</b> 并释放抢答权。<br>
+                4. <strong>最终胜负</strong>：5分钟结束或12组全部占领后，按<strong>占领颜色格子数量多的一方</strong>获胜！
+            </div>
+            <button class="start-btn" onclick="startGame()">🚀 开始 5 分钟大比拼！</button>
+        </div>
+    </div>
+
+    <!-- 终局结算弹窗 -->
+    <div id="endModal" class="modal-overlay hidden">
+        <div class="modal-card">
+            <h1 id="winnerHeadline">🏆 比赛结束！</h1>
+            <p id="winnerSubtext" style="color:#475569; font-size:16px;"></p>
+            <div class="result-grid">
+                <div class="result-box pink">
+                    <div style="font-weight:bold; color:var(--pink-dark);">🌸 粉队占领格子</div>
+                    <div class="big-count" style="color:var(--pink-dark);" id="finalPinkCount">0</div>
+                    <div style="font-size:14px;">总得分：<strong id="finalPinkScore">0</strong> 分</div>
+                </div>
+                <div class="result-box yellow">
+                    <div style="font-weight:bold; color:var(--yellow-dark);">⭐ 黄队占领格子</div>
+                    <div class="big-count" style="color:var(--yellow-dark);" id="finalYellowCount">0</div>
+                    <div style="font-size:14px;">总得分：<strong id="finalYellowScore">0</strong> 分</div>
+                </div>
+            </div>
+            <button class="start-btn" onclick="resetAndStart()">🔄 再来一局</button>
+        </div>
+    </div>
+
+<script>
+/**
+ * 1. 部首常用汉字库（涵盖小学阶段及常见规范汉字，确保智能判题准确）
+ */
+const RADICAL_DICT = {
+    "辶": new Set("这边过进远近送还道通连速造运迎追退迷选遇遍透途逐递遗避邀迈迁巡迅达违返迟述追逆逛逝逢逗通逛".split("")),
+    "亻": new Set("什休你他你们作住位体何但低伴伸似伯估值使例供依便保信修候借停像偷傲傻传伤份仿伙伟优会伞企众".split("")),
+    "氵": new Set("海汽河江湖洋流洗活法波浪消深清游温满演滴漏漫汉汗汁池汤沉沙沟没油泪泳泉注洁浇测浓浅派浑海涂消涉涛涨液淡深混添渴游湖湾源溪滋滑满漂演漠漫漏潜潮激灌洒".split("")),
+    "木": new Set("树林森村校样桥机板杯桌椅梅桃柳松柏杨桂枫棉棒棋楼标栏格框案桐桑桶梁梦梯检棕森植椰楚楷模横樱橙".split("")),
+    "彳": new Set("很行得往待律后徒徐径征彻彼御循微德徽彷徨徘徊".split("")),
+    "土": new Set("地场城坐坡块坏坚坝坑均坦坪垂垃型垢垫垮城域培基堂堆塑塔填境墙增墨壁壤压在圭寺尘".split(""))
+};
+
+const QUESTIONS_DATA = [
+    { id: 0, radical: "辶" },
+    { id: 1, radical: "亻" },
+    { id: 2, radical: "氵" },
+    { id: 3, radical: "木" },
+    { id: 4, radical: "彳" },
+    { id: 5, radical: "土" }
+];
+
+/**
+ * 2. 游戏状态管理
+ */
+let gameState = {
+    isPlaying: false,
+    globalTimeLeft: 300, // 5分钟 = 300秒
+    activeTeam: null,    // 'pink' | 'yellow' | null
+    turnTimeLeft: 30,
+    scores: { pink: 0, yellow: 0 },
+    claimedCount: { pink: 0, yellow: 0 },
+    // 记录12个组的状态: key = "row_slot" (如 "0_1", "0_2")
+    slots: {}
+};
+
+let globalTimerInterval = null;
+let turnTimerInterval = null;
+
+/**
+ * 3. Web Audio API 趣味背景音乐与音效合成器（无需外部音频文件）
+ */
+class SoundEngine {
+    constructor() {
+        this.ctx = null;
+        this.bgmEnabled = true;
+        this.bgmTimer = null;
+        this.step = 0;
+        // 欢快紧张的竞赛旋律音符频率 (C大调五声音阶/进行曲风)
+        this.melody = [
+            523.25, 0, 659.25, 783.99, 659.25, 0, 783.99, 1046.50,
+            880.00, 0, 783.99, 659.25, 587.33, 659.25, 783.99, 0,
+            523.25, 0, 659.25, 783.99, 880.00, 1046.50, 880.00, 783.99,
+            659.25, 783.99, 587.33, 493.88, 523.25, 0, 0, 0
+        ];
+        this.bass = [
+            261.63, 196.00, 261.63, 196.00, 220.00, 164.81, 220.00, 164.81,
+            174.61, 130.81, 174.61, 130.81, 196.00, 146.83, 196.00, 146.83
+        ];
+    }
+
+    init() {
+        if (!this.ctx) {
+            const AudioCtx = window.AudioContext || window.webkitAudioContext;
+            this.ctx = new AudioCtx();
+        }
+        if (this.ctx.state === 'suspended') {
+            this.ctx.resume();
+        }
+    }
+
+    playTone(freq, duration, type = 'triangle', vol = 0.08) {
+        if (!this.ctx || freq <= 0) return;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = type;
+        osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
+        gain.gain.setValueAtTime(vol, this.ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + duration);
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start();
+        osc.stop(this.ctx.currentTime + duration);
+    }
+
+    startBGM() {
+        this.init();
+        this.stopBGM();
+        this.step = 0;
+        const tick = () => {
+            if (!this.bgmEnabled || !gameState.isPlaying) return;
+            // 最后30秒或单轮最后5秒加速，制造紧张刺激感！
+            const isUrgent = gameState.globalTimeLeft <= 30 || (gameState.activeTeam && gameState.turnTimeLeft <= 5);
+            const intervalMs = isUrgent ? 150 : 220;
+
+            const note = this.melody[this.step % this.melody.length];
+            const bassNote = this.bass[Math.floor(this.step / 2) % this.bass.length];
+
+            this.playTone(note, 0.16, 'triangle', 0.06);
+            if (this.step % 2 === 0) {
+                this.playTone(bassNote, 0.25, 'sine', 0.07);
+            }
+            this.step++;
+            this.bgmTimer = setTimeout(tick, intervalMs);
+        };
+        tick();
+    }
+
+    stopBGM() {
+        if (this.bgmTimer) {
+            clearTimeout(this.bgmTimer);
+            this.bgmTimer = null;
+        }
+    }
+
+    playBuzz(team) {
+        this.init();
+        if (team === 'pink') {
+            this.playTone(587.33, 0.1, 'sine', 0.18);
+            setTimeout(() => this.playTone(880, 0.2, 'sine', 0.18), 80);
+        } else {
+            this.playTone(523.25, 0.1, 'sine', 0.18);
+            setTimeout(() => this.playTone(783.99, 0.2, 'sine', 0.18), 80);
+        }
+    }
+
+    playCorrect() {
+        this.init();
+        [523.25, 659.25, 783.99, 1046.50].forEach((f, idx) => {
+            setTimeout(() => this.playTone(f, 0.18, 'triangle', 0.18), idx * 75);
+        });
+    }
+
+    playWrong() {
+        this.init();
+        this.playTone(220, 0.22, 'sawtooth', 0.15);
+        setTimeout(() => this.playTone(164.81, 0.35, 'sawtooth', 0.15), 160);
+    }
+
+    playTick() {
+        this.init();
+        this.playTone(987.77, 0.06, 'sine', 0.1);
+    }
+
+    playVictory() {
+        this.init();
+        const fanfare = [523.25, 523.25, 523.25, 659.25, 783.99, 659.25, 1046.50];
+        const times = [0, 120, 240, 360, 500, 680, 840];
+        fanfare.forEach((f, i) => {
+            setTimeout(() => this.playTone(f, 0.28, 'triangle', 0.2), times[i]);
+        });
+    }
+}
+
+const sound = new SoundEngine();
+
+function toggleBGM() {
+    sound.bgmEnabled = !sound.bgmEnabled;
+    const btn = document.getElementById('bgmToggleBtn');
+    btn.textContent = sound.bgmEnabled ? '🎵 背景音乐：开' : '🔇 背景音乐：关';
+    if (sound.bgmEnabled && gameState.isPlaying) {
+        sound.startBGM();
+    } else {
+        sound.stopBGM();
+    }
+}
+
+/**
+ * 4. 初始化生成题目 DOM（完全留白，无任何 placeholder）
+ */
+function renderQuestions() {
+    const container = document.getElementById('questionsContainer');
+    container.innerHTML = '';
+    gameState.slots = {};
+
+    QUESTIONS_DATA.forEach(item => {
+        const rowDiv = document.createElement('div');
+        rowDiv.className = 'row';
+
+        const radDiv = document.createElement('div');
+        radDiv.className = 'radical';
+        radDiv.textContent = item.radical;
+        rowDiv.appendChild(radDiv);
+
+        [1, 2].forEach(slotNum => {
+            const key = `${item.id}_${slotNum}`;
+            gameState.slots[key] = {
+                rowId: item.id,
+                slotNum: slotNum,
+                radical: item.radical,
+                claimedBy: null, // 'pink' | 'yellow' | null
+                charVal: '',
+                wordVal: ''
+            };
+
+            const groupDiv = document.createElement('div');
+            groupDiv.className = 'item-group';
+            groupDiv.id = `group_${key}`;
+
+            const numSpan = document.createElement('span');
+            numSpan.className = 'num';
+            numSpan.textContent = slotNum === 1 ? '①' : '②';
+
+            // 汉字输入框（无任何 placeholder）
+            const charInput = document.createElement('input');
+            charInput.type = 'text';
+            charInput.className = 'input-char';
+            charInput.id = `char_${key}`;
+            charInput.maxLength = 1;
+            charInput.disabled = true;
+            charInput.autocomplete = 'off';
+
+            const eqSpan = document.createElement('span');
+            eqSpan.className = 'equals';
+            eqSpan.textContent = '=';
+
+            // 组词输入框（无任何 placeholder）
+            const wordInput = document.createElement('input');
+            wordInput.type = 'text';
+            wordInput.className = 'input-word';
+            wordInput.id = `word_${key}`;
+            wordInput.maxLength = 4;
+            wordInput.disabled = true;
+            wordInput.autocomplete = 'off';
+
+            // 绑定输入体验优化：单字输入完自动跳到组词框，按回车直接提交
+            charInput.addEventListener('input', (e) => {
+                enforceSingleActiveSlot(key);
+                const val = e.target.value.trim();
+                if (/[\u4e00-\u9fa5]/.test(val)) {
+                    wordInput.focus();
+                }
+            });
+
+            wordInput.addEventListener('input', () => {
+                enforceSingleActiveSlot(key);
+            });
+
+            [charInput, wordInput].forEach(inp => {
+                inp.addEventListener('focus', () => {
+                    if (gameState.activeTeam && !gameState.slots[key].claimedBy) {
+                        enforceSingleActiveSlot(key);
+                    }
+                });
+                inp.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter') {
+                        e.preventDefault();
+                        submitCurrentAnswer();
+                    }
+                });
+            });
+
+            groupDiv.appendChild(numSpan);
+            groupDiv.appendChild(charInput);
+            groupDiv.appendChild(eqSpan);
+            groupDiv.appendChild(wordInput);
+            rowDiv.appendChild(groupDiv);
+        });
+
+        container.appendChild(rowDiv);
+    });
+}
+
+// 确保当前抢答选手一次只在一个未占领题组里填写，防止误填多处
+function enforceSingleActiveSlot(activeKey) {
+    Object.keys(gameState.slots).forEach(k => {
+        if (k !== activeKey && !gameState.slots[k].claimedBy) {
+            document.getElementById(`char_${k}`).value = '';
+            document.getElementById(`word_${k}`).value = '';
+        }
+    });
+}
+
+/**
+ * 5. 游戏流程控制
+ */
+function startGame() {
+    document.getElementById('startModal').classList.add('hidden');
+    document.getElementById('endModal').classList.add('hidden');
+    renderQuestions();
+
+    gameState.isPlaying = true;
+    gameState.globalTimeLeft = 300;
+    gameState.activeTeam = null;
+    gameState.scores = { pink: 0, yellow: 0 };
+    gameState.claimedCount = { pink: 0, yellow: 0 };
+
+    updateHUD();
+    resetTurnToBuzzState();
+    sound.startBGM();
+
+    if (globalTimerInterval) clearInterval(globalTimerInterval);
+    globalTimerInterval = setInterval(() => {
+        if (!gameState.isPlaying) return;
+        gameState.globalTimeLeft--;
+        updateGlobalTimerDisplay();
+
+        if (gameState.globalTimeLeft <= 0) {
+            endGame(false);
+        }
+    }, 1000);
+}
+
+function resetAndStart() {
+    startGame();
+}
+
+function updateGlobalTimerDisplay() {
+    const mins = String(Math.floor(gameState.globalTimeLeft / 60)).padStart(2, '0');
+    const secs = String(gameState.globalTimeLeft % 60).padStart(2, '0');
+    const el = document.getElementById('globalTimer');
+    el.textContent = `${mins}:${secs}`;
+    if (gameState.globalTimeLeft <= 30) {
+        el.classList.add('urgent');
+    } else {
+        el.classList.remove('urgent');
+    }
+}
+
+function updateHUD() {
+    document.getElementById('pinkScore').textContent = gameState.scores.pink;
+    document.getElementById('yellowScore').textContent = gameState.scores.yellow;
+    document.getElementById('pinkTerritory').textContent = gameState.claimedCount.pink;
+    document.getElementById('yellowTerritory').textContent = gameState.claimedCount.yellow;
+    updateGlobalTimerDisplay();
+}
+
+// 回到等待抢答状态
+function resetTurnToBuzzState() {
+    if (turnTimerInterval) {
+        clearInterval(turnTimerInterval);
+        turnTimerInterval = null;
+    }
+    gameState.activeTeam = null;
+    gameState.turnTimeLeft = 30;
+
+    document.getElementById('pinkBuzzBtn').disabled = false;
+    document.getElementById('yellowBuzzBtn').disabled = false;
+    document.getElementById('pinkScoreCard').classList.remove('active-turn');
+    document.getElementById('yellowScoreCard').classList.remove('active-turn');
+    document.getElementById('worksheet').classList.remove('can-answer');
+    document.getElementById('submitAnswerBtn').classList.remove('visible');
+
+    document.getElementById('turnMessage').textContent = '⚡ 双方准备！请按下自己队的颜色按钮抢答！';
+    const bar = document.getElementById('turnTimerBar');
+    bar.style.width = '100%';
+    bar.style.backgroundColor = '#4cc9f0';
+    document.getElementById('turnTimerText').textContent = '抢答后限时 30 秒作答';
+
+    // 锁定所有输入框，并清空未占领的草稿
+    Object.keys(gameState.slots).forEach(key => {
+        const slot = gameState.slots[key];
+        const cInp = document.getElementById(`char_${key}`);
+        const wInp = document.getElementById(`word_${key}`);
+        cInp.disabled = true;
+        wInp.disabled = true;
+        if (!slot.claimedBy) {
+            cInp.value = '';
+            wInp.value = '';
+        }
+    });
+}
+
+// 队伍按下颜色按钮抢答
+function claimTurn(team) {
+    if (!gameState.isPlaying || gameState.activeTeam !== null) return;
+
+    gameState.activeTeam = team;
+    gameState.turnTimeLeft = 30;
+    sound.playBuzz(team);
+
+    // 锁定双方抢答按钮
+    document.getElementById('pinkBuzzBtn').disabled = true;
+    document.getElementById('yellowBuzzBtn').disabled = true;
+
+    const isPink = team === 'pink';
+    document.getElementById(isPink ? 'pinkScoreCard' : 'yellowScoreCard').classList.add('active-turn');
+    document.getElementById('worksheet').classList.add('can-answer');
+    document.getElementById('submitAnswerBtn').classList.add('visible');
+
+    const teamName = isPink ? '🌸 粉队' : '⭐ 黄队';
+    document.getElementById('turnMessage').innerHTML = `<span style="color:${isPink ? '#ff85a2' : '#ffd166'}">${teamName} 正在作答！</span> 请任选一空填写并提交`;
+
+    // 解锁所有未被占领的输入框，并自动聚焦第一个空位的单字框
+    let firstUnclaimedCharInput = null;
+    Object.keys(gameState.slots).forEach(key => {
+        if (!gameState.slots[key].claimedBy) {
+            const cInp = document.getElementById(`char_${key}`);
+            const wInp = document.getElementById(`word_${key}`);
+            cInp.disabled = false;
+            wInp.disabled = false;
+            if (!firstUnclaimedCharInput) {
+                firstUnclaimedCharInput = cInp;
+            }
+        }
+    });
+
+    if (firstUnclaimedCharInput) {
+        firstUnclaimedCharInput.focus();
+    }
+
+    // 启动 30 秒倒计时
+    updateTurnTimerUI();
+    turnTimerInterval = setInterval(() => {
+        if (!gameState.isPlaying || !gameState.activeTeam) return;
+        gameState.turnTimeLeft--;
+        updateTurnTimerUI();
+
+        if (gameState.turnTimeLeft <= 5 && gameState.turnTimeLeft > 0) {
+            sound.playTick();
+        }
+
+        if (gameState.turnTimeLeft <= 0) {
+            handleWrongOrTimeout(true);
+        }
+    }, 1000);
+}
+
+function updateTurnTimerUI() {
+    const pct = (gameState.turnTimeLeft / 30) * 100;
+    const bar = document.getElementById('turnTimerBar');
+    bar.style.width = `${pct}%`;
+    if (gameState.turnTimeLeft <= 8) {
+        bar.style.backgroundColor = '#ef4444';
+    } else if (gameState.activeTeam === 'pink') {
+        bar.style.backgroundColor = '#ff5d8f';
+    } else {
+        bar.style.backgroundColor = '#ffb703';
+    }
+    document.getElementById('turnTimerText').textContent = `剩余作答时间：${gameState.turnTimeLeft} 秒`;
+}
+
+/**
+ * 6. 智能判题与计分染色逻辑
+ */
+function submitCurrentAnswer() {
+    if (!gameState.isPlaying || !gameState.activeTeam) return;
+
+    // 找到当前选手填写了内容的未占领题组
+    let targetKey = null;
+    for (const key of Object.keys(gameState.slots)) {
+        if (!gameState.slots[key].claimedBy) {
+            const cVal = document.getElementById(`char_${key}`).value.trim();
+            const wVal = document.getElementById(`word_${key}`).value.trim();
+            if (cVal !== '' || wVal !== '') {
+                targetKey = key;
+                break;
+            }
+        }
+    }
+
+    if (!targetKey) {
+        showToast('请先在任意空白题组中输入汉字和组词！', 'error');
+        return;
+    }
+
+    const slot = gameState.slots[targetKey];
+    const charVal = document.getElementById(`char_${targetKey}`).value.trim();
+    const wordVal = document.getElementById(`word_${targetKey}`).value.trim();
+
+    // 校验规则：
+    // 1. 汉字必须是1个中文字符，且属于该行部首库
+    // 2. 组词必须是2~4个纯中文字符，且必须包含所写的这个汉字，不能和单字完全一样
+    // 3. 不能与同一行另一个空填写相同的汉字
+    const isSingleChinese = /^[\u4e00-\u9fa5]$/.test(charVal);
+    const hasValidRadical = isSingleChinese && RADICAL_DICT[slot.radical].has(charVal);
+    const isValidWordFormat = /^[\u4e00-\u9fa5]{2,4}$/.test(wordVal) && wordVal.includes(charVal);
+
+    // 检查同行另一空是否已经用了同一个字
+    const siblingSlotNum = slot.slotNum === 1 ? 2 : 1;
+    const siblingKey = `${slot.rowId}_${siblingSlotNum}`;
+    const siblingSlot = gameState.slots[siblingKey];
+    const isDuplicateInRow = siblingSlot.claimedBy && siblingSlot.charVal === charVal;
+
+    if (!isSingleChinese || !isValidWordFormat) {
+        handleWrongOrTimeout(false, '格式错误（需填1个汉字，并用该字组成2-4字词语）！扣1分！');
+        return;
+    }
+
+    if (!hasValidRadical) {
+        handleWrongOrTimeout(false, `“${charVal}”的部首不是“${slot.radical}”！扣1分！`);
+        return;
+    }
+
+    if (isDuplicateInRow) {
+        handleWrongOrTimeout(false, `这一行已经写过“${charVal}”字了，不能重复！扣1分！`);
+        return;
+    }
+
+    // 作答正确！
+    handleCorrectAnswer(targetKey, charVal, wordVal);
+}
+
+function handleCorrectAnswer(key, charVal, wordVal) {
+    const team = gameState.activeTeam;
+    const slot = gameState.slots[key];
+
+    slot.claimedBy = team;
+    slot.charVal = charVal;
+    slot.wordVal = wordVal;
+
+    // 得分 +1，领地 +1
+    gameState.scores[team] += 1;
+    gameState.claimedCount[team] += 1;
+
+    // 永久变色染色
+    const groupEl = document.getElementById(`group_${key}`);
+    groupEl.classList.add(team === 'pink' ? 'claimed-pink' : 'claimed-yellow');
+    groupEl.classList.add('claimed');
+
+    sound.playCorrect();
+    updateHUD();
+
+    const teamName = team === 'pink' ? '🌸 粉队' : '⭐ 黄队';
+    showToast(`🎉 ${teamName} 作答正确！+1分，成功占领该题组！`, 'success');
+
+    // 检查是否12个格子已全部占领
+    const totalClaimed = gameState.claimedCount.pink + gameState.claimedCount.yellow;
+    if (totalClaimed >= 12) {
+        setTimeout(() => endGame(false), 600);
+    } else {
+        resetTurnToBuzzState();
+    }
+}
+
+function handleWrongOrTimeout(isTimeout, customReason = '') {
+    const team = gameState.activeTeam;
+    if (!team) return;
+
+    // 扣 1 分
+    gameState.scores[team] -= 1;
+    sound.playWrong();
+    updateHUD();
+
+    const ws = document.getElementById('worksheet');
+    ws.classList.add('shake');
+    setTimeout(() => ws.classList.remove('shake'), 400);
+
+    const teamName = team === 'pink' ? '🌸 粉队' : '⭐ 黄队';
+    const msg = isTimeout
+        ? `⏰ ${teamName} 30秒作答超时！扣1分，重新抢答！`
+        : `❌ ${teamName} ${customReason}`;
+    showToast(msg, 'error');
+
+    resetTurnToBuzzState();
+}
+
+/**
+ * 7. 终局判定与结算
+ */
+function endGame(isManual) {
+    gameState.isPlaying = false;
+    sound.stopBGM();
+    if (globalTimerInterval) clearInterval(globalTimerInterval);
+    if (turnTimerInterval) clearInterval(turnTimerInterval);
+
+    const pinkTiles = gameState.claimedCount.pink;
+    const yellowTiles = gameState.claimedCount.yellow;
+
+    document.getElementById('finalPinkCount').textContent = `${pinkTiles} 格`;
+    document.getElementById('finalYellowCount').textContent = `${yellowTiles} 格`;
+    document.getElementById('finalPinkScore').textContent = gameState.scores.pink;
+    document.getElementById('finalYellowScore').textContent = gameState.scores.yellow;
+
+    const headline = document.getElementById('winnerHeadline');
+    const subtext = document.getElementById('winnerSubtext');
+
+    if (pinkTiles > yellowTiles) {
+        headline.textContent = '🏆 恭喜 🌸 粉队 获胜！';
+        headline.style.color = '#c9184a';
+        subtext.textContent = `粉队占领了 ${pinkTiles} 个颜色格子，领先黄队的 ${yellowTiles} 个格子！`;
+        sound.playVictory();
+    } else if (yellowTiles > pinkTiles) {
+        headline.textContent = '🏆 恭喜 ⭐ 黄队 获胜！';
+        headline.style.color = '#b5651d';
+        subtext.textContent = `黄队占领了 ${yellowTiles} 个颜色格子，领先粉队的 ${pinkTiles} 个格子！`;
+        sound.playVictory();
+    } else {
+        headline.textContent = '🤝 势均力敌！双方平局！';
+        headline.style.color = '#0f172a';
+        subtext.textContent = `双方各占领了 ${pinkTiles} 个颜色格子（粉队 ${gameState.scores.pink} 分 vs 黄队 ${gameState.scores.yellow} 分）！`;
+        sound.playVictory();
+    }
+
+    document.getElementById('endModal').classList.remove('hidden');
+}
+
+// 键盘快捷键抢答支持（Q = 粉队，P = 黄队）
+document.addEventListener('keydown', (e) => {
+    if (!gameState.isPlaying) return;
+    if (gameState.activeTeam === null) {
+        if (e.key === 'q' || e.key === 'Q') {
+            e.preventDefault();
+            claimTurn('pink');
+        } else if (e.key === 'p' || e.key === 'P') {
+            e.preventDefault();
+            claimTurn('yellow');
+        }
+    }
+});
+
+// 顶部提示框工具
+let toastTimer = null;
+function showToast(text, type) {
+    const banner = document.getElementById('feedbackBanner');
+    banner.textContent = text;
+    banner.className = `feedback-banner show ${type}`;
+    if (toastTimer) clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => {
+        banner.classList.remove('show');
+    }, 2600);
+}
+
+// 初始渲染静态题面
+renderQuestions();
+</script>
+</body>
+</html>
